@@ -373,6 +373,7 @@ body.nofs [data-fs]{display:none!important}
 .dlgb{width:100%;max-width:420px;background:#282828;border-radius:12px;padding:24px;display:flex;flex-direction:column;gap:14px;box-shadow:0 20px 60px rgba(0,0,0,.6);animation:csup .18s ease-out}
 .dlgb h3{font-size:20px;font-weight:800}
 .dlgb p{color:#c8c8c8;font-size:14px;line-height:1.5}
+#dlgp{white-space:pre-wrap;max-height:55vh;overflow:auto;word-break:break-word}
 .dlgb input{background:#3e3e3e;border:1px solid transparent;border-radius:6px;color:#fff;padding:12px;font-size:16px;outline:0}
 .dlgb input:focus{border-color:#fff}
 .dlga{display:flex;justify-content:flex-end;gap:10px;margin-top:6px}
@@ -534,19 +535,21 @@ body.nofs [data-fs]{display:none!important}
 @keyframes wDisc{from{transform:translateX(-14cqw);opacity:.2}to{transform:translateX(14cqw);opacity:1}}
 @keyframes wBadge{0%,100%{rotate:-4deg}50%{rotate:5deg}}
 /* ---------- riga di testo e "Passa a video" (player a schermo intero) ---------- */
-.fslot{display:flex;flex-direction:column;align-items:flex-start;gap:12px;margin:6px 0 8px}
+/* Lo spazio tra copertina e titolo ha un'altezza fissa (--sh): la riga (o il pulsante) sta al centro di quello spazio, e il resto dello
+   spazio si divide in parti uguali sopra la copertina, tra copertina e riga, tra riga e titolo. */
+.fslot{display:flex;flex-direction:column;align-items:flex-start;justify-content:space-evenly;width:100%;height:var(--sh,0px);flex:none}
 .fslot[hidden],.fpv[hidden],.fpline[hidden]{display:none!important}
 .fpv{display:inline-flex;align-items:center;gap:10px;background:rgba(0,0,0,.34);color:#fff;font-weight:700;font-size:15px;border-radius:500px;padding:10px 18px 10px 14px;line-height:1}
 .fpv:active{background:rgba(0,0,0,.5);transform:scale(.97)}
-.fpline{align-self:stretch;min-height:22px;font-weight:800;font-size:17px;line-height:1.3;letter-spacing:-.1px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.fpline{align-self:stretch;min-height:21px;font-weight:700;font-size:16px;line-height:1.3;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
 .fpline.chg{animation:fplIn .35s ease-out}
-@keyframes fplIn{from{opacity:.15;transform:translateY(7px)}to{opacity:1;transform:none}}
+@keyframes fplIn{from{opacity:.15;transform:translateY(6px)}to{opacity:1;transform:none}}
 body.vid #fpline{display:none}
 /* video: sostituisce la copertina, a tutta larghezza e mai sotto i 200 px di altezza (minimo richiesto da YouTube) */
-.fvid{display:none;flex:1 1 0px;align-items:center;justify-content:center;min-height:0;padding:8px 0}
-.fvid.on{display:flex}
+.fvid{display:none;width:calc(100% + 48px);flex:none}
+.fvid.on{display:block}
 body.vid #fpcov{display:none}
-.fvbox{width:calc(100% + 48px);margin:0 -24px;aspect-ratio:16/9;min-height:200px;max-height:100%;background:#000;position:relative;overflow:hidden}
+.fvbox{width:100%;aspect-ratio:16/9;min-height:200px;background:#000;position:relative;overflow:hidden}
 .fvbox iframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:block}
 /* ---------- MOBILE ---------- */
 @media (max-width:800px){
@@ -615,8 +618,14 @@ body.vid #fpcov{display:none}
  .fpm{display:flex;flex-direction:column;height:auto;min-height:max(100%,500px);padding:calc(12px + env(safe-area-inset-top)) 24px calc(14px + env(safe-area-inset-bottom));scroll-snap-align:start}
  #fp .ftop{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:700;text-align:center}
  #fp .ftop .ib{width:40px;height:40px;color:#fff}
- #fp .fcov{flex:1 1 0px;display:flex;align-items:center;justify-content:center;min-height:0;padding:16px 0;container-type:size}
- #fp .fcov .cov{width:min(100cqw,100cqh);height:min(100cqw,100cqh);flex:none;border-radius:6px;box-shadow:0 8px 40px rgba(0,0,0,.5)}
+ #fp{--sh:0px}
+ #fp.hs-l{--sh:104px}
+ #fp.hs-p{--sh:64px}
+ #fp.hs-lp{--sh:124px}
+ #fp .fmid{flex:1 1 0px;min-height:calc(140px + var(--sh) + 30px);display:flex;flex-direction:column;align-items:center;justify-content:space-evenly;container-type:size}
+ body.vid #fp .fmid{min-height:calc(max(200px,56.25vw) + var(--sh) + 30px)}
+ #fp .fcov{flex:none;display:flex;align-items:center;justify-content:center}
+ #fp .fcov .cov{width:max(140px,min(100cqw,calc(100cqh - var(--sh) - 30px)));height:max(140px,min(100cqw,calc(100cqh - var(--sh) - 30px)));flex:none;border-radius:6px;box-shadow:0 8px 40px rgba(0,0,0,.5)}
  #fp .finfo{display:flex;align-items:center;justify-content:space-between;gap:12px}
  #fp .finfo .t{min-width:0}
  #fp #fptitle{font-size:22px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -736,9 +745,11 @@ body.vid #fpcov{display:none}
 <div id="fp">
 <div class="fpm">
  <div class="ftop"><button class="ib" data-act="fpclose" id="fpDown"></button><div>IN RIPRODUZIONE<div style="font-weight:400;color:#ddd;margin-top:2px" id="fpctx"></div></div><button class="ib" data-act="fpmore" id="fpMore"></button></div>
+ <div class="fmid" id="fpmid">
  <div class="fcov" id="fpcov"></div>
  <div class="fvid" id="fpvid"><div class="fvbox" id="fpvbox"></div></div>
  <div class="fslot" id="fpslot" hidden><button class="fpv" id="fpvbtn" data-act="vidtoggle" hidden></button><div class="fpline" id="fpline" data-act="lyrics" role="button" aria-label="Apri i testi" hidden></div></div>
+ </div>
  <div class="finfo"><div class="t"><div id="fptitle"></div><div id="fpartist"></div></div><button class="ib heart" id="fpheart" data-act="heartcur"></button></div>
  <div class="fseek"><input type="range" id="fpseek" min="0" max="1000" value="0"><div class="ftimes"><span id="fptcur">0:00</span><span id="fptdur">0:00</span></div></div>
  <div class="fctrls">
@@ -788,7 +799,7 @@ const fmt = s => { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s/60) 
 const fmtLong = s => { s = Math.floor(s||0); const h = Math.floor(s/3600), m = Math.floor(s%3600/60); return h ? `${h} h ${m} min` : `${m} min ${s%60} s`; };
 const isMobile = () => matchMedia('(max-width:800px)').matches;
 let toastT;
-function toast(m){ const t=$('#toast'); t.textContent=m; t.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('on'),2600); }
+function toast(m,ms=2600){ const t=$('#toast'); t.textContent=m; t.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('on'),ms); }
 
 /* ---------- MD5 (necessario per il token Subsonic) ---------- */
 function md5(str){
@@ -1647,10 +1658,10 @@ function mbGet(path){
       catch(e){ throw Object.assign(new Error('rete'),{down:true}); }
       if(r.status===503 || r.status===429){ await sleep(2500); continue; }
       if(r.status===404) return null;
-      if(!r.ok) throw new Error('MusicBrainz '+r.status);
+      if(!r.ok) throw Object.assign(new Error('MusicBrainz '+r.status),{status:r.status});
       return r.json();
     }
-    throw new Error('MusicBrainz occupato');
+    throw Object.assign(new Error('MusicBrainz occupato'),{status:503});
   };
   const p=MB.q.then(run,run); MB.q=p.catch(()=>{}); return p;
 }
@@ -1664,41 +1675,55 @@ function ytFromRels(rels){
 }
 const lucene = x => String(x||'').replace(/[\\"]/g,' ').replace(/\s+/g,' ').trim();
 /* cerca il video di un brano: prima con l'ID MusicBrainz del file (se c'e'), altrimenti per artista, titolo e durata */
-async function mbFindVideo(s, alive){
-  let budget=6;
+async function mbFindVideo(s, alive, tr){
+  const T=m=>{ if(tr) tr.push(m); };
+  let budget=8;
+  const hostsOf=rels=>[...new Set((rels||[]).filter(r=>r['target-type']==='url' && r.url).map(r=>{ try{ return new URL(r.url.resource).hostname.replace(/^(www|m|music)\./,''); }catch(e){ return '?'; } }))];
   const look=async(id,inc)=>{ if(budget--<=0 || !alive()) return null; return mbGet(`/recording/${id}?inc=${inc}&fmt=json`); };
-  const fromRec=async id=>{
-    const rec=await look(id,'url-rels+recording-rels'); if(!rec) return {found:false,id:null};
-    let v=ytFromRels(rec.relations); if(v) return {found:true,id:v};
+  const fromRec=async(id,label)=>{
+    const rec=await look(id,'url-rels+recording-rels');
+    if(!rec){ T(`${label}: non esiste su MusicBrainz (404)`); return {found:false,id:null}; }
+    let v=ytFromRels(rec.relations);
+    if(v){ T(`${label}: collegamento YouTube trovato`); return {found:true,id:v}; }
+    const h=hostsOf(rec.relations);
+    T(`${label}: ${h.length?'collegamenti a '+h.join(', ')+' (nessuno è YouTube)':'nessun collegamento esterno'}`);
     const vids=(rec.relations||[]).filter(r=>r['target-type']==='recording' && r.recording && r.recording.video).slice(0,2);
+    if(vids.length) T(`  ${vids.length===1?'1 video musicale collegato':vids.length+' video musicali collegati'}: li controllo`);
     for(const r of vids){
       const vr=await look(r.recording.id,'url-rels'); if(!vr) continue;
-      v=ytFromRels(vr.relations); if(v) return {found:true,id:v};
+      v=ytFromRels(vr.relations); if(v){ T('  il video musicale ha un collegamento YouTube'); return {found:true,id:v}; }
+      const hv=hostsOf(vr.relations); T(`  video musicale: ${hv.length?hv.join(', '):'nessun collegamento esterno'}`);
     }
     return {found:true,id:null};
   };
   let mbid=s.musicBrainzId;
   if(!mbid){ try{ mbid=(await api('getSong',{id:s.id})).song?.musicBrainzId; }catch(e){} }
+  T(`ID MusicBrainz nel file (da Navidrome): ${mbid||'assente'}`);
   if(!alive()) return undefined;
   if(mbid){
-    const r=await fromRec(mbid);
+    const r=await fromRec(mbid,'Registrazione con l\'ID del file');
     if(!alive()) return undefined;
     if(r.found) return r.id;                       /* ID valido: se non ha video, non se ne cerca un altro */
+    T('L\'ID del file non è un ID di registrazione: cerco per titolo e artista');
   }
-  const d=Math.round((s.duration||0)*1000);
-  let q=`recording:"${lucene(cleanTitle(s.title)||s.title)}" AND artist:"${lucene(s.artist)}"`;
-  if(d) q+=` AND dur:[${Math.max(0,d-Math.max(5000,d*.08))|0} TO ${d+Math.max(5000,d*.08)|0}]`;
+  const q=`recording:"${lucene(cleanTitle(s.title)||s.title)}" AND artist:"${lucene(s.artist)}"`;
   budget--; if(!alive()) return undefined;
-  const res=await mbGet(`/recording?query=${encodeURIComponent(q)}&limit=6&fmt=json`);
+  const res=await mbGet(`/recording?query=${encodeURIComponent(q)}&limit=10&fmt=json`);
+  const all=(res&&res.recordings)||[];
+  T(`Ricerca per titolo e artista: ${all.length} ${all.length===1?'risultato':'risultati'}`);
+  const d=Math.round((s.duration||0)*1000);
   const nt=normName(cleanTitle(s.title)||s.title), na=normName(s.artist);
-  const cands=((res&&res.recordings)||[]).filter(x=>{
-    if((x.score||0)<85) return false;
+  const near=x=>(d && x.length) ? Math.abs(x.length-d) : 1e9;
+  const cands=all.filter(x=>{
+    if((x.score||0)<80) return false;
     const an=normName((x['artist-credit']||[]).map(c=>c.name||(c.artist&&c.artist.name)||'').join(''));
     return !na || !an || an.includes(na) || na.includes(an);
-  }).sort((a,b)=>((normName(b.title)===nt)-(normName(a.title)===nt))||((b.score||0)-(a.score||0))).slice(0,3);
-  for(const c of cands){
+  }).sort((a,b)=>((normName(b.title)===nt)-(normName(a.title)===nt))||(near(a)-near(b))||((b.score||0)-(a.score||0))).slice(0,4);
+  T(`  compatibili per artista e titolo: ${cands.length}`);
+  for(let i=0;i<cands.length;i++){
     if(!alive()) return undefined;
-    const r=await fromRec(c.id);
+    const c=cands[i];
+    const r=await fromRec(c.id,`Candidato ${i+1} («${c.title}»${c.length?', '+fmt(c.length/1000):''})`);
     if(r.id) return r.id;
   }
   return null;
@@ -1730,9 +1755,15 @@ function ytApi(){
 }
 /* pulsante e riga di testo sotto la copertina */
 function slotSync(){
-  const sl=$('#fpslot'); if(!sl) return;
+  const sl=$('#fpslot'), fp=$('#fp'); if(!sl) return;
   const b=$('#fpvbtn'), l=$('#fpline');
-  sl.hidden = b.hidden && (l.hidden || VID.on);
+  /* lo spazio della riga si riserva gia' mentre i testi si caricano, cosi' la copertina non cambia misura quando arrivano */
+  const line = !VID.on && (!l.hidden || (LY.status==='loading' && !!cur()));
+  const pill = !b.hidden;
+  sl.hidden = !(line||pill);
+  fp.classList.toggle('hs-l', line && !pill);
+  fp.classList.toggle('hs-p', pill && !line);
+  fp.classList.toggle('hs-lp', line && pill);
 }
 function vidBtn(){
   const s=cur(), el=$('#fpvbtn'); if(!el) return;
@@ -1753,9 +1784,9 @@ async function vidLookup(s){
     if(v!==undefined){ MBC[id]={v:v||null,t:Date.now()}; mbSave(); VID.avail[id]=v||null; }
   }catch(e){
     VID.fail[id]=Date.now();
-    if(e && e.down){
+    if(e && (e.down || e.status)){
       MB.downUntil=Date.now()+5*60000;
-      if(!MB.warned){ MB.warned=true; toast('MusicBrainz non è raggiungibile da questo browser: «Passa a video» non sarà disponibile.'); }
+      if(!MB.warned){ MB.warned=true; toast(e.down ? 'MusicBrainz non è raggiungibile da questo browser: «Passa a video» non sarà disponibile. Prova «Diagnostica video» dal menu ⋯.' : 'MusicBrainz ha rifiutato la richiesta (HTTP '+e.status+'): «Passa a video» non sarà disponibile. Prova «Diagnostica video» dal menu ⋯.',7000); }
     }
   }finally{ if(VID.pending===id) VID.pending=null; vidBtn(); }
 }
@@ -1818,6 +1849,35 @@ function vidStop(resume){
 }
 /* a schermo spento YouTube non puo' continuare: si prosegue con l'audio dal tuo Navidrome */
 document.addEventListener('visibilitychange',()=>{ if(document.hidden && VID.on) vidStop(true); });
+/* ---------- DIAGNOSTICA: perche' «Passa a video» compare o no ---------- */
+async function vidDiagnose(){
+  const s=cur(); if(!s){ toast('Avvia prima un brano'); return; }
+  if(VID.diag) return; VID.diag=true;
+  toast('Controllo MusicBrainz…');
+  const tr=[`Brano: ${s.title} — ${s.artist}`,
+            `Pagina aperta da: ${location.protocol==='file:' ? 'file locale (da qui YouTube non riproduce: serve https)' : location.origin}`];
+  MB.downUntil=0; delete VID.fail[s.id];
+  const alive=()=>!!cur() && cur().id===s.id;
+  let id, err=null;
+  try{ id=await mbFindVideo(s,alive,tr); }catch(e){ err=e; }
+  VID.diag=false;
+  if(err){
+    tr.push(err.down ? 'ERRORE: il browser ha bloccato la richiesta a musicbrainz.org (rete assente, CORS o estensione anti-tracciamento).'
+                     : 'ERRORE: MusicBrainz ha risposto HTTP '+(err.status||'?')+'.');
+    tr.push('Se la richiesta è bloccata o rifiutata, «Passa a video» non può funzionare da questo browser.');
+  }else if(id===undefined){
+    tr.push('Controllo interrotto: hai cambiato brano.');
+  }else if(id){
+    tr.push('ESITO: video trovato (YouTube '+id+'). «Passa a video» è disponibile per questo brano.');
+    MBC[s.id]={v:id,t:Date.now()}; mbSave(); VID.avail[s.id]=id; vidBtn();
+  }else{
+    tr.push('ESITO: MusicBrainz risponde, ma non ha nessun video YouTube collegato a questo brano: il pulsante non può comparire.');
+    MBC[s.id]={v:null,t:Date.now()}; mbSave(); VID.avail[s.id]=null; vidBtn();
+  }
+  tr.push(`Richieste a MusicBrainz in questa sessione: ${MB.n}`);
+  $('#toast').classList.remove('on');
+  await dlg({title:'Diagnostica «Passa a video»', text:tr.join('\n'), ok:'Chiudi', noCancel:true});
+}
 /* ---------- RIGA DI TESTO SINCRONIZZATA (sotto la copertina) ---------- */
 function fpLine(i){
   const el=$('#fpline'); if(!el) return;
@@ -2430,7 +2490,7 @@ function handleAct(a,e){
     case 'castclose': closeCast(); break;
     case 'castpick': if(VID_ON()) vidStop(true); closeCast(); try{ castCtx().requestSession().then(err=>{ if(err && err!=='cancel') toast('Impossibile connettersi al dispositivo'); }); }catch(x){ toast('Google Cast non disponibile'); } break;
     case 'artistcard': if(AC.key){ closeFp(); location.hash='#/artist/'+AC.key; } break;
-    case 'fpmore': { const s=cur(); if(s){ const r=a.getBoundingClientRect(); showMenu(r.left-180,r.bottom,songMenu(s,[['Impostazioni di riproduzione…',()=>setTimeout(openSettings,0)]])); e.stopPropagation(); } break; }
+    case 'fpmore': { const s=cur(); if(s){ const r=a.getBoundingClientRect(); showMenu(r.left-180,r.bottom,songMenu(s,[['Impostazioni di riproduzione…',()=>setTimeout(openSettings,0)],['Diagnostica video…',()=>setTimeout(vidDiagnose,0)]])); e.stopPropagation(); } break; }
     case 'heartcur': { const s=cur(); if(s) toggleStar(s.id); break; }
     case 'heart': e.preventDefault(); toggleStar(a.dataset.id); break;
     case 'heartalbum': toggleStar(a.dataset.id,true); break;
@@ -2451,7 +2511,7 @@ function handleAct(a,e){
     case 'libfilter': LIB.filter = LIB.filter===a.dataset.f ? null : a.dataset.f; renderLibrary(); break;
     case 'libsort': LIB.sort = LIB.sort==='recent'?'alpha':'recent'; renderLibrary(); break;
     case 'sfilter': SF=a.dataset.f; renderSearch(); break;
-    case 'usermenu': { const r=a.getBoundingClientRect(); showMenu(r.right-230,r.bottom+8,[[`Connesso come ${S.user}`,()=>{}],['Winkify Wrapped',()=>setTimeout(()=>{ if(window.openWrapped) openWrapped(); },0)],['Impostazioni di riproduzione',()=>setTimeout(openSettings,0)],['Esci',logout]]); e.stopPropagation(); break; }
+    case 'usermenu': { const r=a.getBoundingClientRect(); showMenu(r.right-230,r.bottom+8,[[`Connesso come ${S.user}`,()=>{}],['Winkify Wrapped',()=>setTimeout(()=>{ if(window.openWrapped) openWrapped(); },0)],['Impostazioni di riproduzione',()=>setTimeout(openSettings,0)],['Diagnostica video',()=>setTimeout(vidDiagnose,0)],['Esci',logout]]); e.stopPropagation(); break; }
   }
 }
 
@@ -2538,12 +2598,12 @@ $('#xfa').addEventListener('change',()=>{ XF.album=$('#xfa').checked; xfSave(); 
 
 /* ---------- DIALOGHI (testo / conferma) ---------- */
 let DLG=null;
-function dlg({title,text='',input=null,ok='OK',danger=false,cancel='Annulla'}){
+function dlg({title,text='',input=null,ok='OK',danger=false,cancel='Annulla',noCancel=false}){
   return new Promise(res=>{
     const d=$('#dlg'), i=$('#dlgi'), o=$('#dlgo'), c=$('#dlgc');
     $('#dlgt').textContent=title; $('#dlgp').textContent=text; $('#dlgp').style.display=text?'':'none';
     i.style.display=input!=null?'':'none'; if(input!=null) i.value=input;
-    o.textContent=ok; o.classList.toggle('danger',!!danger); c.textContent=cancel;
+    o.textContent=ok; o.classList.toggle('danger',!!danger); c.textContent=cancel; c.style.display=noCancel?'none':'';
     const end=v=>{ if(!DLG) return; DLG=null; d.classList.remove('on'); res(v); };
     DLG=end;
     o.onclick=()=>end(input!=null ? i.value : true);

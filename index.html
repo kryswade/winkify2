@@ -352,7 +352,7 @@ body.nofs [data-fs]{display:none!important}
 /* ---------- Impostazioni / dialoghi ---------- */
 #setm{position:fixed;inset:0;z-index:270;background:rgba(0,0,0,.6);display:none;align-items:flex-end;justify-content:center}
 #setm.on{display:flex}
-.setp{width:100%;max-width:560px;background:#1f1f1f;border-radius:16px 16px 0 0;padding:6px 20px calc(20px + env(safe-area-inset-bottom));animation:csup .22s ease-out}
+.setp{width:100%;max-width:560px;max-height:92vh;max-height:92dvh;overflow-y:auto;background:#1f1f1f;border-radius:16px 16px 0 0;padding:6px 20px calc(20px + env(safe-area-inset-bottom));animation:csup .22s ease-out}
 @media (min-width:801px){#setm{align-items:center}.setp{border-radius:16px;padding-bottom:22px}}
 .setp .cst{padding:2px 0 10px}
 .srow{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0}
@@ -367,7 +367,15 @@ body.nofs [data-fs]{display:none!important}
 .tgl input::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .2s}
 .tgl input:checked{background:#1ed760}
 .tgl input:checked::after{transform:translateX(20px)}
-.snote{font-size:12.5px;color:#9a9a9a;line-height:1.5;margin:6px 0 16px}
+.snote{font-size:12.5px;color:#9a9a9a;line-height:1.5;margin:6px 0 10px}
+.sinp{width:100%;background:#3e3e3e;border:1px solid transparent;border-radius:6px;color:#fff;padding:12px;font-size:16px;outline:0}
+.sinp:focus{border-color:#fff}
+.ytb{display:flex;gap:10px;margin:10px 0 4px;flex-wrap:wrap}
+.ytb button[hidden]{display:none}
+.ytd summary{cursor:pointer;color:#b3b3b3;font-size:13px;font-weight:700;padding:8px 0}
+.ytd ol{padding-left:20px;font-size:13px;color:#b3b3b3;line-height:1.5;margin:2px 0 6px}
+.ytd li{margin:5px 0}
+.ytd code{background:#333;border-radius:4px;padding:1px 5px;font-size:12px;color:#fff;word-break:break-all}
 #dlg{position:fixed;inset:0;z-index:330;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;padding:20px}
 #dlg.on{display:flex}
 .dlgb{width:100%;max-width:420px;background:#282828;border-radius:12px;padding:24px;display:flex;flex-direction:column;gap:14px;box-shadow:0 20px 60px rgba(0,0,0,.6);animation:csup .18s ease-out}
@@ -537,11 +545,13 @@ body.nofs [data-fs]{display:none!important}
 /* ---------- riga di testo e "Passa a video" (player a schermo intero) ---------- */
 /* Lo spazio tra copertina e titolo ha un'altezza fissa (--sh): la riga (o il pulsante) sta al centro di quello spazio, e il resto dello
    spazio si divide in parti uguali sopra la copertina, tra copertina e riga, tra riga e titolo. */
-.fslot{display:flex;flex-direction:column;align-items:flex-start;justify-content:space-evenly;width:100%;height:var(--sh,0px);flex:none}
+.fslot{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;width:100%;height:var(--sh,0px);flex:none}
 .fslot[hidden],.fpv[hidden],.fpline[hidden]{display:none!important}
-.fpv{display:inline-flex;align-items:center;gap:10px;background:rgba(0,0,0,.34);color:#fff;font-weight:700;font-size:15px;border-radius:500px;padding:10px 18px 10px 14px;line-height:1}
+.fpv{flex:none;display:inline-flex;align-items:center;gap:10px;background:rgba(0,0,0,.34);color:#fff;font-weight:700;font-size:15px;border-radius:500px;padding:10px 18px 10px 14px;line-height:1}
 .fpv:active{background:rgba(0,0,0,.5);transform:scale(.97)}
-.fpline{align-self:stretch;min-height:21px;font-weight:700;font-size:16px;line-height:1.3;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.fpline{align-self:stretch;flex:1 1 0px;min-height:0;display:flex;align-items:center;font-weight:700;font-size:16px;line-height:1.3;color:#fff;cursor:pointer}
+.fpline>span{display:block;width:100%;overflow-wrap:anywhere}
+.fpline.lclamp>span{display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden}
 .fpline.chg{animation:fplIn .35s ease-out}
 @keyframes fplIn{from{opacity:.15;transform:translateY(6px)}to{opacity:1;transform:none}}
 body.vid #fpline{display:none}
@@ -619,12 +629,17 @@ body.vid #fpcov{display:none}
  #fp .ftop{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:700;text-align:center}
  #fp .ftop .ib{width:40px;height:40px;color:#fff}
  #fp{--sh:0px}
- #fp.hs-l{--sh:104px}
- #fp.hs-p{--sh:64px}
- #fp.hs-lp{--sh:124px}
+ #fp.hs-l{--sh:80px}
+ #fp.hs-p{--sh:58px}
+ #fp.hs-lp{--sh:120px}
+ #fp.hs-lp .fpv{margin-top:18px}
  #fp .fmid{flex:1 1 0px;min-height:calc(140px + var(--sh) + 30px);display:flex;flex-direction:column;align-items:center;justify-content:space-evenly;container-type:size}
  body.vid #fp .fmid{min-height:calc(max(200px,56.25vw) + var(--sh) + 30px)}
  #fp .fcov{flex:none;display:flex;align-items:center;justify-content:center}
+ #fp[class*="hs-"] .fmid{justify-content:flex-start}
+ #fp[class*="hs-"] .fmid::before{content:"";height:0;margin-top:auto;flex:none}
+ #fp[class*="hs-"] .fcov,#fp[class*="hs-"] .fvid{margin-top:auto}
+ #fp[class*="hs-"] .fslot{margin-top:auto;margin-bottom:auto}
  #fp .fcov .cov{width:max(140px,min(100cqw,calc(100cqh - var(--sh) - 30px)));height:max(140px,min(100cqw,calc(100cqh - var(--sh) - 30px)));flex:none;border-radius:6px;box-shadow:0 8px 40px rgba(0,0,0,.5)}
  #fp .finfo{display:flex;align-items:center;justify-content:space-between;gap:12px}
  #fp .finfo .t{min-width:0}
@@ -637,6 +652,11 @@ body.vid #fpcov{display:none}
  #fp .fctrls .ib{width:44px;height:44px;color:#fff}
  #fp .fctrls .ib.on{color:#1ed760}
  #fp .fctrls .fpp{width:64px;height:64px;border-radius:50%;background:#fff;color:#000;display:flex;align-items:center;justify-content:center}
+ @media (min-height:740px){
+  #fp .fseek{margin-top:20px}
+  #fp .ftimes{margin-top:5px}
+  #fp .fctrls{margin:19px 0 33px}
+ }
  #fp .fbot{display:flex;justify-content:flex-end}
  #fp .fbot .ib{color:#fff}
  #lyr{position:fixed;inset:0;z-index:80;border-radius:0;padding-top:env(safe-area-inset-top)}
@@ -748,7 +768,7 @@ body.vid #fpcov{display:none}
  <div class="fmid" id="fpmid">
  <div class="fcov" id="fpcov"></div>
  <div class="fvid" id="fpvid"><div class="fvbox" id="fpvbox"></div></div>
- <div class="fslot" id="fpslot" hidden><button class="fpv" id="fpvbtn" data-act="vidtoggle" hidden></button><div class="fpline" id="fpline" data-act="lyrics" role="button" aria-label="Apri i testi" hidden></div></div>
+ <div class="fslot" id="fpslot" hidden><button class="fpv" id="fpvbtn" data-act="vidtoggle" hidden></button><div class="fpline" id="fpline" data-act="lyrics" role="button" aria-label="Apri i testi" hidden><span id="fplt"></span></div></div>
  </div>
  <div class="finfo"><div class="t"><div id="fptitle"></div><div id="fpartist"></div></div><button class="ib heart" id="fpheart" data-act="heartcur"></button></div>
  <div class="fseek"><input type="range" id="fpseek" min="0" max="1000" value="0"><div class="ftimes"><span id="fptcur">0:00</span><span id="fptdur">0:00</span></div></div>
@@ -778,7 +798,13 @@ body.vid #fpcov{display:none}
  <div class="srow"><div class="stt"><b>Dissolvenza tra i brani</b><i id="xfl"></i></div></div>
  <input type="range" id="xfs" min="0" max="12" step="1" value="4">
  <label class="srow tgl"><span class="stt"><b>Album senza dissolvenza</b><i>I brani consecutivi di uno stesso album passano senza pausa e senza sfumare: ideale per dischi dal vivo e concept album.</i></span><input type="checkbox" id="xfa"></label>
- <p class="snote" id="xfn"></p><div style="display:flex;justify-content:flex-end"><button class="pbtn" data-act="setclose">Fatto</button></div></div></div>
+ <p class="snote" id="xfn"></p>
+ <div class="cst" style="padding-top:8px">Video</div>
+ <div class="srow" style="padding-bottom:6px"><div class="stt"><b>Chiave YouTube Data API</b><i id="ytst"></i></div></div>
+ <input type="password" id="ytk" class="sinp" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Chiave YouTube Data API">
+ <div class="ytb"><button class="pbtn sec" data-act="ytsave">Salva e verifica</button><button class="pbtn sec" id="ytdel" data-act="ytdel" hidden>Rimuovi</button></div>
+ <details class="ytd"><summary>Come ottenere la chiave (gratis)</summary><ol id="ythow"></ol></details>
+ <div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="pbtn" data-act="setclose">Fatto</button></div></div></div>
 <div id="dlg"><div class="dlgb"><h3 id="dlgt"></h3><p id="dlgp"></p><input id="dlgi" type="text" maxlength="120" autocomplete="off"><div class="dlga"><button class="pbtn sec" id="dlgc">Annulla</button><button class="pbtn" id="dlgo">OK</button></div></div></div>
 <div id="wr" aria-label="Winkify Wrapped"><div id="wrbd"></div><div class="wst" id="wrs"><div id="wrh"></div><div class="wpr" id="wrp"></div><button class="wbt wmu" id="wrmu" data-act="wrmute" aria-label="Audio"></button><button class="wbt wx" id="wrcl" data-act="wrclose" aria-label="Chiudi"></button></div></div>
 <div id="menu"></div>
@@ -1655,13 +1681,13 @@ function mbGet(path){
       MB.last=Date.now(); MB.n++;
       let r;
       try{ r=await fetch(MB_BASE+path); }
-      catch(e){ throw Object.assign(new Error('rete'),{down:true}); }
+      catch(e){ throw Object.assign(new Error('rete'),{down:true,src:'mb'}); }
       if(r.status===503 || r.status===429){ await sleep(2500); continue; }
       if(r.status===404) return null;
-      if(!r.ok) throw Object.assign(new Error('MusicBrainz '+r.status),{status:r.status});
+      if(!r.ok) throw Object.assign(new Error('MusicBrainz '+r.status),{status:r.status,src:'mb'});
       return r.json();
     }
-    throw Object.assign(new Error('MusicBrainz occupato'),{status:503});
+    throw Object.assign(new Error('MusicBrainz occupato'),{status:503,src:'mb'});
   };
   const p=MB.q.then(run,run); MB.q=p.catch(()=>{}); return p;
 }
@@ -1764,6 +1790,7 @@ function slotSync(){
   fp.classList.toggle('hs-l', line && !pill);
   fp.classList.toggle('hs-p', pill && !line);
   fp.classList.toggle('hs-lp', line && pill);
+  fpFit();
 }
 function vidBtn(){
   const s=cur(), el=$('#fpvbtn'); if(!el) return;
@@ -1772,21 +1799,190 @@ function vidBtn(){
   el.innerHTML = VID.on ? ic('note',20)+'Passa all\'audio' : ic('vid',22)+'Passa a video';
   slotSync();
 }
+/* ---------- YOUTUBE DATA API (chiave personale gratuita) ---------- */
+/* La chiave si incolla nelle impostazioni e resta solo nel browser (localStorage): non e' scritta nel file.
+   Costo: search.list = 1 "ricerca" su 100 al giorno; videos.list = 1 unita' sulle 10.000 giornaliere. Il contatore si azzera a mezzanotte (ora della California). */
+const YT_BASE = 'https://www.googleapis.com/youtube/v3';
+const YTQ_LIMIT = 100, YT_MIN = 60;
+const YTS = {bad:null, badAt:0, warned:false};
+const ytKey = () => { try{ return (localStorage.getItem('winkify_ytk')||'').trim(); }catch(e){ return ''; } };
+const ptDay = () => { try{ return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Los_Angeles',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()); }catch(e){ return new Date().toISOString().slice(0,10); } };
+function ytqGet(){ let q=null; try{ q=JSON.parse(localStorage.getItem('winkify_ytq')||'null'); }catch(e){} const d=ptDay(); return (q && q.d===d) ? q : {d,n:0}; }
+function ytqSet(q){ try{ localStorage.setItem('winkify_ytq',JSON.stringify(q)); }catch(e){} }
+function ytqAdd(k=1){ const q=ytqGet(); q.n+=k; ytqSet(q); return q; }
+function ytqFull(){ const q=ytqGet(); q.n=Math.max(q.n,YTQ_LIMIT); ytqSet(q); }
+/* traduce la risposta d'errore di Google in un motivo comprensibile */
+function ytClassify(status, j){
+  const e=(j && j.error) || {};
+  const reasons=[...(e.errors||[]).map(x=>x.reason), ...(e.details||[]).map(x=>x.reason)].filter(Boolean).join(' ');
+  const all=reasons+' '+String(e.message||'');
+  if(/quotaExceeded|dailyLimitExceeded|rateLimitExceeded|RATE_LIMIT_EXCEEDED/i.test(all)) return {code:'quota', text:'Limite giornaliero della chiave raggiunto'};
+  if(/API_KEY_SERVICE_BLOCKED/i.test(all)) return {code:'service', text:'la chiave è limitata ad altre API: nelle restrizioni API seleziona «YouTube Data API v3»'};
+  if(/API_KEY_HTTP_REFERRER_BLOCKED|referer|referrer/i.test(all)) return {code:'referrer', text:'la chiave non è autorizzata per questo indirizzo ('+location.origin+'): controlla le restrizioni «Referrer HTTP»'};
+  if(/accessNotConfigured|SERVICE_DISABLED|has not been used|is disabled/i.test(all)) return {code:'disabled', text:'«YouTube Data API v3» non è abilitata nel progetto della chiave'};
+  if(/API_KEY_INVALID|keyInvalid|API key not valid|API_KEY_NOT_FOUND/i.test(all) || status===400) return {code:'invalid', text:'chiave non valida'};
+  return {code:'http', text:'risposta HTTP '+status};
+}
+async function ytGet(ep, params, keyOv){
+  const u=new URL(YT_BASE+'/'+ep);
+  Object.entries(params).forEach(([k,v])=>u.searchParams.set(k,v));
+  u.searchParams.set('key', keyOv || ytKey());
+  let r;
+  try{ r=await fetch(u.toString(),{referrerPolicy:'origin'}); }
+  catch(e){ throw Object.assign(new Error('rete'),{down:true,src:'yt'}); }
+  let j=null; try{ j=await r.json(); }catch(e){}
+  if(!r.ok){ const c=ytClassify(r.status,j); throw Object.assign(new Error(c.text),{yt:c.code,status:r.status,src:'yt'}); }
+  return j;
+}
+const isoSec = d => { const m=/^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/.exec(d||''); return m ? ((+m[1]||0)*86400+(+m[2]||0)*3600+(+m[3]||0)*60+(+m[4]||0)) : 0; };
+const lz = x => String(x||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\p{L}\p{N}]+/gu,'');
+const artistParts = a => String(a||'').split(/\s*(?:,|;|\/|&|\band\b|\bfeat\.?|\bft\.?|\bwith\b|\bx\b)\s*/i).map(lz).filter(x=>x.length>1);
+const YT_BAD = [['dal vivo',/\b(live|en vivo|dal vivo)\b/],['cover',/\bcover(ed)?\b/],['karaoke',/\bkaraoke\b/],['remix',/\b(remix|mashup|bootleg)\b/],['reaction',/\breaction\b/],
+  ['tutorial',/\b(tutorial|lesson|how to play)\b/],['strumentale',/\b(instrumental|backing track)\b/],['modificata',/\b(slowed|reverb|sped up|speed up|nightcore|8d audio|bass boosted)\b/],
+  ['acustica',/\bacoustic\b/],['parodia',/\b(parody|tribute)\b/]];
+/* punteggio di un video candidato: titolo e artista devono corrispondere e la durata essere plausibile */
+function ytScore(s, c){
+  const why=[]; let sc=0;
+  const nt=lz(cleanTitle(s.title)||s.title), vt=lz(c.title), vch=lz(c.channel), parts=artistParts(s.artist);
+  const titleOk = nt.length<2 ? true : vt.includes(nt);
+  const artistOk = !parts.length || parts.some(p=>vt.includes(p) || vch.includes(p));
+  if(titleOk) sc+=40; else { sc-=100; why.push('il titolo non corrisponde'); }
+  if(artistOk) sc+=30; else { sc-=60; why.push('l\'artista non compare'); }
+  const D=+s.duration||0, d=c.dur;
+  if(D && d){
+    const df=d-D;
+    if(Math.abs(df)<=4) sc+=25;
+    else if(df>=-10 && df<=45) sc+=14;
+    else if(df>90 || d>D*1.6 || df<-30){ sc-=80; why.push('durata diversa ('+fmt(d)+' contro '+fmt(D)+')'); }
+    else { sc-=25; why.push('durata un po\' diversa ('+fmt(d)+')'); }
+  }
+  const low=String(c.title||'').toLowerCase(), own=(String(s.title||'')+' '+String(s.album||'')).toLowerCase();
+  for(const [nm,re] of YT_BAD){ if(re.test(low) && !re.test(own)){ sc-=60; why.push('sembra una versione «'+nm+'»'); } }
+  if(/\b(full album|album completo|compilation)\b/.test(low)){ sc-=40; why.push('album completo'); }
+  if(/official/.test(low)) sc+=12;
+  if(/vevo/.test(vch)) sc+=10;
+  if(parts.some(p=>vch.includes(p))) sc+=8;
+  if(/\b(lyric|lyrics|testo|audio)\b/.test(low) && !/official (music )?video/.test(low)) sc-=8;
+  if(/topic$/.test(vch)) sc-=4;
+  return {score:sc, why};
+}
+/* cerca il video su YouTube: 1 ricerca (5 risultati) + 1 controllo di durata e incorporabilita' */
+async function ytFindVideo(s, alive, tr){
+  const T=m=>{ if(tr) tr.push(m); };
+  const title=cleanTitle(s.title)||s.title||'';
+  const q=((s.artist||'')+' '+title+' official video').replace(/\s+/g,' ').trim();
+  T('Ricerca YouTube: «'+q+'»');
+  ytqAdd(1);
+  const sr=await ytGet('search',{part:'snippet',type:'video',maxResults:5,videoEmbeddable:'true',safeSearch:'none',q,fields:'items(id/videoId,snippet(title,channelTitle))'});
+  if(!alive()) return undefined;
+  const items=(sr.items||[]).filter(x=>x.id && x.id.videoId && x.snippet);
+  T('  '+items.length+(items.length===1?' risultato':' risultati'));
+  if(!items.length) return {v:null,alt:[],src:'yt'};
+  const vr=await ytGet('videos',{part:'contentDetails,status',id:items.map(x=>x.id.videoId).join(','),fields:'items(id,contentDetails(duration),status(embeddable,privacyStatus))'});
+  if(!alive()) return undefined;
+  const det=new Map((vr.items||[]).map(x=>[x.id,x]));
+  const cands=items.map(x=>{
+    const d=det.get(x.id.videoId);
+    const c={id:x.id.videoId, title:x.snippet.title||'', channel:x.snippet.channelTitle||'',
+             dur:d?isoSec(d.contentDetails && d.contentDetails.duration):0,
+             emb:!!(d && d.status && d.status.embeddable!==false && (!d.status.privacyStatus || d.status.privacyStatus==='public'))};
+    const r=ytScore(s,c); c.score=r.score; c.why=r.why.slice();
+    if(!d){ c.score-=200; c.why.push('dati non disponibili'); } else if(!c.emb){ c.score-=200; c.why.push('non incorporabile'); }
+    return c;
+  }).sort((a,b)=>b.score-a.score);
+  cands.forEach((c,i)=>T('  '+(i+1)+') «'+c.title.slice(0,58)+'» — '+c.channel.slice(0,28)+' • '+(c.dur?fmt(c.dur):'?')+' • punti '+c.score+(c.why.length?' ('+c.why.join('; ')+')':'')));
+  const good=cands.filter(c=>c.score>=YT_MIN);
+  if(!good.length){ T('  nessun risultato supera i '+YT_MIN+' punti: niente video'); return {v:null,alt:[],src:'yt'}; }
+  T('  scelto: '+good[0].id+(good.length>1?' (alternative: '+(good.length-1)+')':''));
+  return {v:good[0].id, alt:good.slice(1,3).map(c=>c.id), src:'yt'};
+}
+/* YouTube se c'e' una chiave valida e c'e' ancora quota; altrimenti MusicBrainz */
+async function vidFindAny(s, alive, tr){
+  const T=m=>{ if(tr) tr.push(m); };
+  const key=ytKey();
+  if(!key) T('Chiave YouTube: non impostata (uso solo MusicBrainz)');
+  else{
+    const q=ytqGet();
+    T('Chiave YouTube: impostata (…'+key.slice(-4)+') • ricerche oggi: '+q.n+'/'+YTQ_LIMIT);
+    if(q.n>=YTQ_LIMIT) T('Limite giornaliero raggiunto: uso MusicBrainz');
+    else if(!tr && YTS.bad && Date.now()-YTS.badAt<10*60000) { /* chiave rifiutata da poco: non si insiste */ }
+    else{
+      try{ const r=await ytFindVideo(s,alive,tr); YTS.bad=null; return r; }
+      catch(e){
+        if(e && e.yt==='quota'){ ytqFull(); T('Limite giornaliero raggiunto: uso MusicBrainz'); }
+        else if(e && e.yt){
+          YTS.bad=e.yt; YTS.badAt=Date.now(); T('Errore della chiave YouTube: '+e.message+'. Uso MusicBrainz.');
+          if(!YTS.warned && !tr){ YTS.warned=true; toast('Chiave YouTube: '+e.message+'. Uso MusicBrainz.',7000); }
+        }else throw e;
+      }
+    }
+  }
+  const v=await mbFindVideo(s,alive,tr);
+  return v===undefined ? undefined : {v:v||null, alt:[], src:'mb'};
+}
+/* ---------- impostazioni: chiave YouTube ---------- */
+function ytRefreshUI(msg){
+  const k=ytKey(), q=ytqGet();
+  $('#ytk').value='';
+  $('#ytk').placeholder = k ? '…'+k.slice(-4)+' (salvata): incolla per sostituirla' : 'Incolla qui la chiave API';
+  $('#ytst').textContent = msg || (k ? 'Chiave impostata (…'+k.slice(-4)+') • ricerche oggi: '+q.n+' su '+YTQ_LIMIT+' (si azzerano a mezzanotte, ora della California)' : 'Nessuna chiave: «Passa a video» usa solo MusicBrainz.');
+  $('#ytdel').hidden=!k;
+  const o=location.origin==='null' || location.protocol==='file:' ? 'https://TUO-INDIRIZZO' : location.origin;
+  $('#ythow').innerHTML=
+    '<li>Apri <b>console.cloud.google.com</b> e crea un progetto (gratis).</li>'+
+    '<li><b>API e servizi → Libreria</b>: cerca «YouTube Data API v3» e premi <b>Abilita</b>.</li>'+
+    '<li><b>Credenziali → Crea credenziali → Chiave API</b>.</li>'+
+    '<li>Modifica la chiave: in <b>Restrizioni applicazioni</b> scegli «Referrer HTTP» e aggiungi <code>'+esc(o)+'/*</code>; in <b>Restrizioni API</b> scegli solo «YouTube Data API v3».</li>'+
+    '<li>Incolla la chiave qui sopra e premi <b>Salva e verifica</b>.</li>';
+}
+async function ytSave(){
+  const typed=$('#ytk').value.trim();
+  const k=typed || ytKey();
+  if(!k){ toast('Incolla prima la chiave'); return; }
+  if(!/^[A-Za-z0-9_\-]{20,80}$/.test(k)){ ytRefreshUI('La chiave non ha il formato giusto (di solito inizia con «AIza»)'); return; }
+  $('#ytst').textContent='Verifico la chiave…';
+  try{
+    await ytGet('videos',{part:'id',id:'dQw4w9WgXcQ',fields:'items(id)'},k);
+    try{ localStorage.setItem('winkify_ytk',k); }catch(e){}
+    YTS.bad=null; YTS.warned=false; MB.downUntil=0;
+    ytRefreshUI('Chiave valida ✓ • ricerche oggi: '+ytqGet().n+' su '+YTQ_LIMIT);
+  }catch(e){
+    if(e && e.yt==='quota'){ try{ localStorage.setItem('winkify_ytk',k); }catch(x){} ytqFull(); ytRefreshUI('Chiave valida, ma il limite di oggi è già raggiunto: riprova domani'); }
+    else ytRefreshUI(e && e.down ? 'Non riesco a raggiungere googleapis.com: controlla la connessione' : 'Chiave non salvata: '+(e&&e.message||'errore'));
+  }
+}
+function ytDelete(){
+  try{ localStorage.removeItem('winkify_ytk'); }catch(e){}
+  YTS.bad=null; ytRefreshUI('Chiave rimossa');
+}
+
+function vidErrToast(e){
+  if(e.src==='yt') return e.down ? 'YouTube non è raggiungibile da questo browser: «Passa a video» non sarà disponibile.' : 'YouTube ha risposto: '+e.message+'. Controlla la chiave nelle impostazioni.';
+  return e.down ? 'MusicBrainz non è raggiungibile da questo browser: «Passa a video» non sarà disponibile. Prova «Diagnostica video» dal menu ⋯.'
+                : 'MusicBrainz ha rifiutato la richiesta (HTTP '+e.status+'): «Passa a video» non sarà disponibile. Prova «Diagnostica video» dal menu ⋯.';
+}
 async function vidLookup(s){
   if(!s || !fpOpen()) return;
-  const id=s.id, c=MBC[id];
-  if(c && Date.now()-c.t < (c.v?90:14)*864e5){ if(VID.avail[id]!==(c.v||null)){ VID.avail[id]=c.v||null; vidBtn(); } return; }
+  const id=s.id, c=MBC[id], key=ytKey();
+  if(c){
+    const age=Date.now()-c.t, ttl=(c.v?90:(c.src==='yt'?7:14))*864e5;
+    let fresh=age<ttl;
+    if(fresh && !c.v && key && c.src!=='yt') fresh=false;        /* un «niente» trovato senza chiave non vale piu' se ora c'e' la chiave */
+    if(fresh){ const v=c.v||null; if(VID.avail[id]!==v){ VID.avail[id]=v; vidBtn(); } return; }
+  }
   if(VID.pending===id || Date.now()<MB.downUntil || (VID.fail[id] && Date.now()-VID.fail[id]<60000)) return;
   VID.pending=id; const tok=++VID.tok;
   const alive=()=>VID.tok===tok && !!cur() && cur().id===id;
   try{
-    const v=await mbFindVideo(s,alive);
-    if(v!==undefined){ MBC[id]={v:v||null,t:Date.now()}; mbSave(); VID.avail[id]=v||null; }
+    /* con la chiave si aspetta un attimo: scorrendo velocemente i brani non si consumano ricerche */
+    if(key){ await sleep(1200); if(!alive() || !fpOpen()) return; }
+    const r=await vidFindAny(s,alive);
+    if(r!==undefined){ MBC[id]={v:r.v||null,alt:r.alt||[],t:Date.now(),src:r.src}; mbSave(); VID.avail[id]=r.v||null; }
   }catch(e){
     VID.fail[id]=Date.now();
     if(e && (e.down || e.status)){
       MB.downUntil=Date.now()+5*60000;
-      if(!MB.warned){ MB.warned=true; toast(e.down ? 'MusicBrainz non è raggiungibile da questo browser: «Passa a video» non sarà disponibile. Prova «Diagnostica video» dal menu ⋯.' : 'MusicBrainz ha rifiutato la richiesta (HTTP '+e.status+'): «Passa a video» non sarà disponibile. Prova «Diagnostica video» dal menu ⋯.',7000); }
+      if(!MB.warned){ MB.warned=true; toast(vidErrToast(e),7000); }
     }
   }finally{ if(VID.pending===id) VID.pending=null; vidBtn(); }
 }
@@ -1797,10 +1993,19 @@ function vidMsg(code){
        : 'Il video non si riesce a riprodurre';
 }
 function vidFail(msg, drop){
-  if(drop && VID.songId){ VID.avail[VID.songId]=null; MBC[VID.songId]={v:null,t:Date.now()}; mbSave(); }
+  const sid=VID.songId, c=sid && MBC[sid];
+  if(drop && c && c.alt && c.alt.length && (VID.retry||0)<2){
+    VID.retry=(VID.retry||0)+1;
+    c.v=c.alt.shift(); mbSave(); VID.avail[sid]=c.v;
+    toast('Questo video non si può riprodurre qui: ne provo un altro'); vidStop(true);
+    setTimeout(()=>{ if(cur() && cur().id===sid && fpOpen()) vidStart(true); },400);
+    return;
+  }
+  if(drop && sid){ VID.avail[sid]=null; MBC[sid]={v:null,alt:[],t:Date.now(),src:(c&&c.src)||'yt'}; mbSave(); }
   toast(msg); vidStop(true);
 }
-async function vidStart(){
+async function vidStart(isRetry){
+  if(!isRetry) VID.retry=0;
   const s=cur(), v=s && VID.avail[s.id];
   if(!v || VID.on) return;
   if(CAST.on){ toast('Il video non è disponibile durante la trasmissione'); return; }
@@ -1853,40 +2058,53 @@ document.addEventListener('visibilitychange',()=>{ if(document.hidden && VID.on)
 async function vidDiagnose(){
   const s=cur(); if(!s){ toast('Avvia prima un brano'); return; }
   if(VID.diag) return; VID.diag=true;
-  toast('Controllo MusicBrainz…');
-  const tr=[`Brano: ${s.title} — ${s.artist}`,
+  toast('Controllo…');
+  const tr=[`Brano: ${s.title} — ${s.artist} (${fmt(s.duration||0)})`,
             `Pagina aperta da: ${location.protocol==='file:' ? 'file locale (da qui YouTube non riproduce: serve https)' : location.origin}`];
   MB.downUntil=0; delete VID.fail[s.id];
   const alive=()=>!!cur() && cur().id===s.id;
-  let id, err=null;
-  try{ id=await mbFindVideo(s,alive,tr); }catch(e){ err=e; }
+  let r, err=null;
+  try{ r=await vidFindAny(s,alive,tr); }catch(e){ err=e; }
   VID.diag=false;
   if(err){
-    tr.push(err.down ? 'ERRORE: il browser ha bloccato la richiesta a musicbrainz.org (rete assente, CORS o estensione anti-tracciamento).'
-                     : 'ERRORE: MusicBrainz ha risposto HTTP '+(err.status||'?')+'.');
-    tr.push('Se la richiesta è bloccata o rifiutata, «Passa a video» non può funzionare da questo browser.');
-  }else if(id===undefined){
+    if(err.src==='yt') tr.push(err.down ? 'ERRORE: il browser non riesce a raggiungere googleapis.com (rete assente o estensione anti-tracciamento).' : 'ERRORE di YouTube: '+err.message+'.');
+    else tr.push(err.down ? 'ERRORE: il browser ha bloccato la richiesta a musicbrainz.org (rete assente, CORS o estensione anti-tracciamento).' : 'ERRORE: MusicBrainz ha risposto HTTP '+(err.status||'?')+'.');
+  }else if(r===undefined){
     tr.push('Controllo interrotto: hai cambiato brano.');
-  }else if(id){
-    tr.push('ESITO: video trovato (YouTube '+id+'). «Passa a video» è disponibile per questo brano.');
-    MBC[s.id]={v:id,t:Date.now()}; mbSave(); VID.avail[s.id]=id; vidBtn();
+  }else if(r.v){
+    tr.push('ESITO: video trovato (YouTube '+r.v+', fonte: '+(r.src==='yt'?'ricerca su YouTube':'MusicBrainz')+'). «Passa a video» è disponibile per questo brano.');
+    MBC[s.id]={v:r.v,alt:r.alt||[],t:Date.now(),src:r.src}; mbSave(); VID.avail[s.id]=r.v; vidBtn();
   }else{
-    tr.push('ESITO: MusicBrainz risponde, ma non ha nessun video YouTube collegato a questo brano: il pulsante non può comparire.');
-    MBC[s.id]={v:null,t:Date.now()}; mbSave(); VID.avail[s.id]=null; vidBtn();
+    tr.push(r.src==='yt' ? 'ESITO: nessun risultato di YouTube corrisponde a titolo, artista e durata: il pulsante non compare.'
+                         : 'ESITO: MusicBrainz risponde, ma non ha nessun video YouTube collegato a questo brano.'+(ytKey()?'':' Imposta una chiave YouTube nelle impostazioni di riproduzione per cercarlo su YouTube.'));
+    MBC[s.id]={v:null,alt:[],t:Date.now(),src:r.src}; mbSave(); VID.avail[s.id]=null; vidBtn();
   }
-  tr.push(`Richieste a MusicBrainz in questa sessione: ${MB.n}`);
+  if(MB.n) tr.push('Richieste a MusicBrainz in questa sessione: '+MB.n);
   $('#toast').classList.remove('on');
   await dlg({title:'Diagnostica «Passa a video»', text:tr.join('\n'), ok:'Chiudi', noCancel:true});
 }
 /* ---------- RIGA DI TESTO SINCRONIZZATA (sotto la copertina) ---------- */
+/* riduce un poco il carattere solo se la frase, a capo, non ci sta nello spazio (mai puntini, tranne oltre il minimo di 12 px) */
+function fpFit(){
+  const el=$('#fpline'), sp=$('#fplt');
+  if(!el || !sp || el.hidden || $('#fpslot').hidden) return;
+  el.style.fontSize=''; el.classList.remove('lclamp'); sp.style.webkitLineClamp='';
+  const avail=el.clientHeight-6;
+  if(avail<=0) return;
+  let fs=16;
+  while(sp.offsetHeight>avail && fs>12){ fs--; el.style.fontSize=fs+'px'; }
+  if(sp.offsetHeight>avail){ el.classList.add('lclamp'); sp.style.webkitLineClamp=String(Math.max(1,Math.floor(avail/(fs*1.3)))); }
+}
+window.addEventListener('resize',()=>{ if(typeof fpFit==='function') fpFit(); });
+/* ---------- RIGA DI TESTO SINCRONIZZATA (sotto la copertina) ---------- */
 function fpLine(i){
-  const el=$('#fpline'); if(!el) return;
+  const el=$('#fpline'), sp=$('#fplt'); if(!el) return;
   const d=LY.data, ok=!!(d && d.synced && !d.instrumental && d.lines.length);
-  if(!ok){ el.hidden=true; el.textContent=''; el._i=-9; el._s=null; slotSync(); return; }
+  if(!ok){ el.hidden=true; sp.textContent=''; el._i=-9; el._s=null; slotSync(); return; }
   el.hidden=false;
   if(el._i===i && el._s===LY.id){ slotSync(); return; }
   el._i=i; el._s=LY.id;
-  el.textContent = i>=0 ? (d.lines[i].text||'♪') : '';
+  sp.textContent = i>=0 ? (d.lines[i].text||'♪') : '';
   el.classList.remove('chg'); void el.offsetWidth; el.classList.add('chg');
   slotSync();
 }
@@ -2471,6 +2689,8 @@ function handleAct(a,e){
     case 'shclose': if(a.id==='shm' && e.target!==a) break; closeShare(); break;
     case 'fullscreen': toggleFs(); break;
     case 'fpclose': closeFp(); break;
+    case 'ytsave': ytSave(); break;
+    case 'ytdel': ytDelete(); break;
     case 'vidtoggle': VID.on ? vidStop(true) : vidStart(); break;
     case 'wrapped': openWrapped(); break;
     case 'wrclose': closeWrapped(); break;
@@ -2590,6 +2810,7 @@ function openSettings(){
   $('#xfn').textContent = XF.canVol ? 'La riproduzione senza pause tra i brani è sempre attiva. Durante la trasmissione su Chromecast la dissolvenza non è disponibile.'
                                     : 'Questo browser non permette di regolare il volume dei brani: la dissolvenza è disattivata, la riproduzione senza pause resta attiva.';
   $('#xfs').disabled=!XF.canVol;
+  ytRefreshUI();
   $('#setm').classList.add('on');
 }
 function closeSettings(){ $('#setm').classList.remove('on'); }

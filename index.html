@@ -562,6 +562,20 @@ body.vid #fpline{display:none}
 body.vid #fpcov{display:none}
 .fvbox{width:100%;aspect-ratio:16/9;min-height:200px;background:#000;position:relative;overflow:hidden}
 .fvbox iframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:block}
+/* ---------- cache offline / stato del server ---------- */
+#offbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:6px 14px;flex-wrap:wrap;padding:10px 16px;background:#3a2d0b;color:#ffd666;font-size:13px;font-weight:700;line-height:1.3}
+#offbar[hidden]{display:none}
+#offbar a,#offbar button{color:#fff;text-decoration:underline;font-weight:800;font-size:13px}
+.nrow{gap:12px}
+.ndot{width:12px;height:12px;border-radius:50%;background:#777;flex:none}
+.ndot.ok{background:#1ed760;box-shadow:0 0 0 4px rgba(30,215,96,.18)}
+.ndot.ko{background:#e8115b;box-shadow:0 0 0 4px rgba(232,17,91,.18)}
+.nok{color:#1ed760;font-weight:800}.nko{color:#ff7d97;font-weight:800}
+#oswst.good{color:#1ed760}#oswst.bad{color:#ff9aa8}
+.ssel{background:#3e3e3e;color:#fff;border:0;border-radius:6px;padding:9px 10px;font-size:14px;font-weight:700;flex:none;outline:0}
+.ssel:disabled{opacity:.5}
+.pbtn:disabled{opacity:.45;pointer-events:none}
+.ytb .pbtn.danger{background:#e8115b;color:#fff}
 /* ---------- MOBILE ---------- */
 @media (max-width:800px){
  #app.on{display:flex;flex-direction:column;gap:0;padding:0}
@@ -714,6 +728,7 @@ body.vid #fpcov{display:none}
  <aside id="sidebar"><div class="panel libhost" id="libside"></div></aside>
 
  <main id="main">
+  <div id="offbar" hidden><span>Server Navidrome non raggiungibile • modalità offline</span><a href="#/cache">Brani in cache</a><button data-act="navping">Riprova</button></div>
   <div id="scroll">
    <div id="hero"></div>
    <div class="navarr"><button data-act="back" aria-label="Indietro" id="navBack"></button><button data-act="fwd" aria-label="Avanti" id="navFwd"></button></div>
@@ -807,6 +822,15 @@ body.vid #fpcov{display:none}
  <input type="range" id="xfs" min="0" max="12" step="1" value="4">
  <label class="srow tgl"><span class="stt"><b>Album senza dissolvenza</b><i>I brani consecutivi di uno stesso album passano senza pausa e senza sfumare: ideale per dischi dal vivo e concept album.</i></span><input type="checkbox" id="xfa"></label>
  <p class="snote" id="xfn"></p>
+ <div class="cst" style="padding-top:12px">Cache e offline</div>
+ <div class="srow nrow"><div class="stt"><b>Server Navidrome</b><i id="navst"></i></div><span class="ndot" id="navdot"></span></div>
+ <p class="snote" id="navnote" style="margin:0 0 4px"></p>
+ <div class="ytb" style="margin-top:0"><button class="pbtn sec" data-act="navping">Verifica ora</button></div>
+ <div class="srow"><div class="stt"><b>App disponibile offline</b><i id="oswst"></i></div></div>
+ <label class="srow tgl"><span class="stt"><b>Salva i brani che ascolti</b><i>Come in Spotify: i brani riprodotti restano nel browser e si ascoltano anche senza connessione.</i></span><input type="checkbox" id="ocon"></label>
+ <div class="srow"><div class="stt"><b>Spazio massimo per i brani</b><i id="ocuse"></i></div><select id="oclim" class="ssel" aria-label="Spazio massimo"><option value="256">256 MB</option><option value="512">512 MB</option><option value="1024">1 GB</option><option value="2048">2 GB</option><option value="5120">5 GB</option></select></div>
+ <div class="ytb"><button class="pbtn sec" data-act="occache">Brani in cache</button><button class="pbtn danger" data-act="occlear">Cancella cache</button></div>
+ <p class="snote" id="ocnote"></p>
  <div class="cst" style="padding-top:8px">Video</div>
  <div class="srow" style="padding-bottom:6px"><div class="stt"><b>Chiave YouTube Data API</b><i id="ytst"></i></div></div>
  <input type="password" id="ytk" class="sinp" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Chiave YouTube Data API">
@@ -948,11 +972,15 @@ function apiUrl(ep, p={}){
   return `${S.server}/rest/${ep}?${q}`;
 }
 async function api(ep, p={}){
-  const r = await fetch(apiUrl(ep,p));
+  let r;
+  try{ r = await fetch(apiUrl(ep,p)); }
+  catch(e){ if(e instanceof TypeError && ep!=='ping') navFail(); throw e; }
   if(!r.ok) throw new Error('HTTP '+r.status);
+  const stale = r.headers.get('X-Winkify-Cache');          /* risposta data dal service worker con la copia salvata */
   const j = await r.json();
   const s = j['subsonic-response'];
   if(!s || s.status!=='ok') throw new Error(s?.error?.message || 'Errore del server');
+  if(!stale && NAV.ok!==true && ep!=='ping') navSet(true);
   return s;
 }
 const coverUrl = (id, sz=300) => id ? apiUrl('getCoverArt',{id,size:sz}) : '';
@@ -1031,11 +1059,12 @@ function libItems(){
   const f = LIB.filter, items=[];
   if(!f || f==='playlists'){
     if(!f) items.push({k:'liked',name:'Brani che ti piacciono',sub:'Playlist • Preferiti',href:'#/liked',date:Infinity});
+    if(!f && (offCount() || offOK())) items.push({k:'cache',name:'Brani in cache',sub:`Offline • ${offCount()} ${offCount()===1?'brano':'brani'}`,href:'#/cache',date:1e17});
     LIB.playlists.forEach(p=>items.push({k:'playlist',name:p.name,sub:`Playlist • ${esc(p.owner||'')}`,img:p.coverArt||p.id,href:'#/playlist/'+p.id,pid:p.id,date:Date.parse(p.changed)||0}));
   }
   if(!f || f==='albums') LIB.albums.forEach(a=>items.push({k:'album',name:a.name||a.title,sub:`Album • ${esc(a.artist||'')}`,img:a.coverArt||a.id,href:'#/album/'+a.id,date:Date.parse(a.created)||0}));
   if(!f || f==='artists') LIB.artists.forEach(a=>items.push({k:'artist',name:a.name,sub:'Artista',img:a.coverArt||a.id,href:'#/artist/'+a.id,date:-1}));
-  if(LIB.sort==='alpha'){ items.sort((a,b)=>(a.k==='liked'?-1:b.k==='liked'?1:0)||String(a.name).localeCompare(String(b.name),'it',{sensitivity:'base'})); }
+  if(LIB.sort==='alpha'){ items.sort((a,b)=>(a.k==='liked'?-1:b.k==='liked'?1:0)||(a.k==='cache'?-1:b.k==='cache'?1:0)||String(a.name).localeCompare(String(b.name),'it',{sensitivity:'base'})); }
   else items.sort((a,b)=>b.date-a.date);
   return items;
 }
@@ -1043,7 +1072,7 @@ function renderLibrary(){
   const items = libItems();
   const chip=(k,l)=>`<button class="chip ${LIB.filter===k?'on':''}" data-act="libfilter" data-f="${k}">${l}</button>`;
   const rows = items.slice(0,1500).map(it=>{
-    const img = it.k==='liked' ? `<div class="cov likedcov">${ic('heart',22)}</div>` : cov(it.img,96,it.k==='artist'?'round':'');
+    const img = it.k==='liked' ? `<div class="cov likedcov">${ic('heart',22)}</div>` : it.k==='cache' ? `<div class="cov likedcov" style="background:linear-gradient(135deg,#1ed760,#0b6b30)">${ic('dl',22)}</div>` : cov(it.img,96,it.k==='artist'?'round':'');
     return `<a class="li ${it.k}" href="${it.href}" data-href="${it.href}"${it.pid?` data-pl="${esc(it.pid)}"`:''}>${img}<div class="t"><div class="nm">${esc(it.name)}</div><div class="sb">${it.sub}</div></div></a>`;
   }).join('') || `<div class="empty" style="padding:40px 16px">${LIB.loaded?'Nessun elemento':'Caricamento…'}</div>`;
   const html = `<div class="lib-h">${ic('lib')}<span>La tua libreria</span></div>
@@ -1148,6 +1177,7 @@ function xfSave(){ try{ localStorage.setItem('winkify_xf',JSON.stringify({sec:XF
 /* indice del brano che parte dopo quello in corso (-1 = nessuno / ripeti un brano) */
 function xfNextIdx(){
   if(!P.queue.length || P.repeat===2) return -1;
+  if(offOffline()) return offNextIdx(1);
   if(P.i < P.queue.length-1) return P.i+1;
   if(P.repeat===1 && P.queue.length>1) return 0;
   return -1;
@@ -1190,10 +1220,11 @@ function xfPrepare(){
   xbDrop();
   const pre={id:s.id, idx:ni, el, url, blob:false, ready:false};
   XF.pre=pre;
-  if(document.hidden || XF.forceBlob){
+  if(!offHas(s.id) && (document.hidden || XF.forceBlob)){      /* un brano in cache non ha bisogno di rete: lo serve il service worker */
     pre.blob=true;
     xfRelease(el); try{ el.removeAttribute('src'); el.load(); }catch(e){}      /* svuota: niente dati del brano precedente */
     xbFetch(url).then(blob=>{
+      if(blob && OFF.on && offOK()) offPut(s,blob,blob.type);      /* lo stesso download alimenta anche la cache */
       if(XF.pre!==pre) return;
       if(blob){ const bu=URL.createObjectURL(blob); xfSetSrc(el,bu,bu); } else xfSetSrc(el,url);   /* senza file in memoria: flusso normale */
       el.preload='auto'; el.load(); pre.ready=true;
@@ -1296,6 +1327,7 @@ function playList(list, idx=0, {ctx=null, random=false}={}){
   load();
 }
 function afterLoad(s){
+  offTouch(s.id);
   const auto=ADV.auto; ADV.auto=false; if(auto) advWatch(s);
   PS.own = true; scrobbled = false;
   api('scrobble',{id:s.id,submission:false}).catch(()=>{});
@@ -1308,12 +1340,18 @@ function load(){
   PS.own = true;
   const pre = XF.pre;
   if(!CAST.on && pre && pre.ready && pre.id===s.id && pre.idx===P.i && pre.el.readyState>=2){ xfPromote(pre,0,false); }
-  else{ xfStopFade(); audio.src = apiUrl('stream',{id:s.id}); audio.play().catch(()=>toast('Impossibile avviare la riproduzione')); }
+  else{ xfStopFade(); audio.src = apiUrl('stream',{id:s.id}); audio.play().catch(()=>toast(offOffline() && !offHas(s.id) ? 'Questo brano non è in cache e il server non è raggiungibile' : 'Impossibile avviare la riproduzione')); }
   afterLoad(s);
 }
 function next(auto=false){
   if(!P.queue.length) return;
   if(auto && P.repeat===2){ audio.currentTime=0; audio.play(); return; }
+  if(offOffline()){
+    const j=offNextIdx(1);
+    if(j>=0){ P.i=j; ADV.auto=auto; load(); }
+    else{ if(auto){ audio.pause(); audio.currentTime=0; updateUI(); } toast('Nessun altro brano disponibile offline'); }
+    return;
+  }
   if(P.i < P.queue.length-1){ P.i++; ADV.auto=auto; load(); }
   else if(P.repeat===1){ P.i=0; ADV.auto=auto; load(); }
   else if(auto){ audio.pause(); audio.currentTime=0; updateUI(); }
@@ -1321,6 +1359,7 @@ function next(auto=false){
 function prev(){
   if(!P.queue.length) return;
   if(audio.currentTime>3){ audio.currentTime=0; return; }
+  if(offOffline()){ const j=offNextIdx(-1); if(j>=0){ P.i=j; load(); } else audio.currentTime=0; return; }
   P.i = P.i>0 ? P.i-1 : (P.repeat===1 ? P.queue.length-1 : 0); load();
 }
 function togglePlay(){ if(!cur()) return; audio.paused ? audio.play() : audio.pause(); }
@@ -1370,7 +1409,11 @@ audio.addEventListener('timeupdate',()=>{
 audio.addEventListener('ended',()=>next(true));
 audio.addEventListener('play',updateUI);
 audio.addEventListener('pause',updateUI);
-audio.addEventListener('error',()=>{ if(cur()) toast('Errore di riproduzione del brano'); });
+audio.addEventListener('error',()=>{
+  const s=cur(); if(!s || PS.restoring) return;
+  if(NAV.ok===false && !offHas(s.id)) toast('Questo brano non è in cache e il server non è raggiungibile');
+  else{ toast('Errore di riproduzione del brano'); navFail(); }
+});
 
 function setRange(el,val){ el.value=val; el.style.setProperty('--p',(val/el.max*100)+'%'); }
 function updateProgress(){
@@ -2473,6 +2516,7 @@ function songMenu(s, extra=[]){
     ['Aggiungi a playlist…',()=>setTimeout(()=>playlistPicker(s),0)],
     ...(s.albumId?[['Vai all\'album',()=>location.hash='#/album/'+s.albumId]]:[]),
     ...(s.artistId?[['Vai all\'artista',()=>location.hash='#/artist/'+s.artistId]]:[]),
+    ...(offHas(s.id) ? [['Rimuovi dalla cache',()=>offRemove(s.id)]] : (offOK() ? [['Salva in cache',()=>offSaveNow(s)]] : [])),
     ...extra
   ];
 }
@@ -2490,7 +2534,7 @@ function rowMenu(row,x,y){
 function playRow(row){ const {w,list,i}=rowSong(row); playList(list,i,{ctx:w.dataset.ctx||null}); }
 
 /* ---------- VISTE ---------- */
-const views = {home:vHome, library:vLibrary, album:vAlbum, playlist:vPlaylist, artist:vArtist, liked:vLiked, genre:vGenre};
+const views = {home:vHome, library:vLibrary, album:vAlbum, playlist:vPlaylist, artist:vArtist, liked:vLiked, genre:vGenre, cache:vCache};
 const albumsOf = (type,size=20,extra={}) => api('getAlbumList2',{type,size,...extra}).then(r=>r.albumList2?.album||[]).catch(()=>[]);
 
 function vLibrary(){ return {html:`<div id="libm" class="libhost" style="min-height:60vh;padding-top:0"></div>`, hero:null, after:renderLibrary}; }
@@ -2634,7 +2678,7 @@ async function route(){
   LISTS.length=0;
   let r;
   try{ r=await (views[name]||vHome)(arg); }
-  catch(e){ if(my!==rid) return; r={html:`<div class="err"><h3>Qualcosa è andato storto</h3>${esc(e.message)}</div>`,hero:null}; }
+  catch(e){ if(my!==rid) return; r={html:(e instanceof TypeError || NAV.ok===false) ? offlineView() : `<div class="err"><h3>Qualcosa è andato storto</h3>${esc(e.message)}</div>`,hero:null}; }
   if(my!==rid) return;
   $('#view').innerHTML=r.html; setHero(r.hero,r.heroA||1);
   $('#main').scrollTop=0; lastName=name;
@@ -2697,6 +2741,9 @@ function handleAct(a,e){
     case 'shclose': if(a.id==='shm' && e.target!==a) break; closeShare(); break;
     case 'fullscreen': toggleFs(); break;
     case 'fpclose': closeFp(); break;
+    case 'navping': navPing().then(ok=>toast(ok?'Server Navidrome raggiungibile':'Server Navidrome non raggiungibile')); break;
+    case 'occache': closeSettings(); location.hash='#/cache'; break;
+    case 'occlear': offClearUI(); break;
     case 'ytsave': ytSave(); break;
     case 'ytdel': ytDelete(); break;
     case 'vidtoggle': VID.on ? vidStop(true) : vidStart(); break;
@@ -2788,6 +2835,7 @@ function startApp(){
   $('#login').style.display='none'; $('#app').classList.add('on');
   $('#avatar').textContent=(S.user||'?').charAt(0);
   initStaticIcons();
+  navStart();
   loadLibrary();
   route();
   try{ restorePlayer(); }catch(e){}
@@ -2810,6 +2858,289 @@ $('#lform').addEventListener('submit',async e=>{
       : 'Accesso non riuscito: '+err.message;
   }finally{ $('#lbtn').disabled=false; $('#lbtn').textContent='Accedi'; }
 });
+/* ---------- STATO DEL SERVER NAVIDROME ---------- */
+const NAV = {ok:null, ms:null, ver:null, err:'', at:0, busy:false, timer:0, soon:0};
+function swPost(msg){
+  try{
+    const c = navigator.serviceWorker && (navigator.serviceWorker.controller || (OFF.reg && OFF.reg.active));
+    if(c) c.postMessage(msg);
+  }catch(e){}
+}
+const navHost = () => { try{ return new URL(S.server).host; }catch(e){ return S ? S.server : ''; } };
+function navSet(ok, err=''){
+  const was=NAV.ok; NAV.ok=ok; NAV.err=ok?'':err; NAV.at=Date.now();
+  swPost({t:'nav', down:!ok});
+  if(was!==ok){
+    navBanner();
+    if(ok && was===false){ toast('Server Navidrome di nuovo raggiungibile'); try{ loadLibrary(); }catch(e){} if(location.hash==='#/home'||!location.hash) try{ route(); }catch(e){} }
+    if(!ok && was!==null) toast('Server Navidrome non raggiungibile: restano disponibili i brani in cache', 5000);
+  }
+  navUI();
+}
+async function navPing(){
+  if(!S) return NAV.ok;
+  if(NAV.busy) return NAV.ok;
+  NAV.busy=true; navUI();
+  const t0=performance.now(), ctl=new AbortController(), to=setTimeout(()=>ctl.abort(),7000);
+  let ok=false, err='';
+  try{
+    const r=await fetch(apiUrl('ping',{_:Date.now()}),{signal:ctl.signal});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const s=(await r.json())['subsonic-response'];
+    if(!s || s.status!=='ok') throw new Error((s&&s.error&&s.error.message)||'risposta non valida');
+    ok=true; NAV.ms=Math.round(performance.now()-t0); NAV.ver=s.serverVersion||null;
+  }catch(e){
+    err = e.name==='AbortError' ? 'nessuna risposta entro 7 secondi'
+        : (e instanceof TypeError ? (navigator.onLine===false ? 'il dispositivo è offline' : 'server irraggiungibile (rete, indirizzo o CORS)') : e.message);
+  }
+  clearTimeout(to); NAV.busy=false; navSet(ok,err);
+  return ok;
+}
+/* una richiesta fallita non basta a dire "offline": si controlla con un ping (una sola volta ogni tanto) */
+function navFail(){ if(NAV.ok===false || NAV.soon) return; NAV.soon=setTimeout(()=>{ NAV.soon=0; navPing(); },700); }
+function navStart(){
+  if(navigator.onLine===false) navSet(false,'il dispositivo è offline');
+  navPing();
+  clearInterval(NAV.timer);
+  NAV.timer=setInterval(()=>{ if(document.visibilityState==='visible' && S) navPing(); }, 30000);
+}
+window.addEventListener('online',()=>{ if(S) navPing(); });
+window.addEventListener('offline',()=>{ if(S) navSet(false,'il dispositivo è offline'); });
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible' && S && NAV.ok!==null && Date.now()-NAV.at>8000) navPing(); });
+function navBanner(){ const b=$('#offbar'); if(b) b.hidden = NAV.ok!==false; }
+
+/* ---------- CACHE OFFLINE (brani nel browser, come in Spotify) ---------- */
+const OFF_AUDIO='winkify-audio-v1', OFF_COVERS='winkify-covers-v1', OFF_DATA='winkify-data-v1';
+const OFF = {sw:'init', swErr:'', ver:null, reg:null, on:true, limitMB:1024, meta:{}, queue:[], busy:null, ctl:null, tried:{}, persisted:null, after:10, cap:250*1048576};
+let OFF_SCOPE = new URL('./',location.href).href;
+try{ const j=JSON.parse(localStorage.getItem('winkify_oc')||'null'); if(j){ OFF.on=j.on!==false; if(+j.limitMB>0) OFF.limitMB=+j.limitMB; } }catch(e){}
+try{ OFF.meta=JSON.parse(localStorage.getItem('winkify_ocm')||'{}')||{}; }catch(e){ OFF.meta={}; }
+const offKey = id => OFF_SCOPE+'__track/'+encodeURIComponent(id);
+const offHas = id => !!OFF.meta[id];
+const offOK = () => OFF.sw==='ok' && 'caches' in window;
+const offBytes = () => Object.values(OFF.meta).reduce((a,m)=>a+(m.bytes||0),0);
+const offCount = () => Object.keys(OFF.meta).length;
+const fmtB = n => n>=1073741824 ? (n/1073741824).toFixed(2).replace('.',',')+' GB' : n>=1048576 ? (n/1048576>=100?Math.round(n/1048576):(n/1048576).toFixed(1).replace('.',','))+' MB' : Math.max(n?1:0,Math.round(n/1024))+' KB';
+const fmtLim = mb => mb>=1024 ? (mb/1024)+' GB' : mb+' MB';
+function offSaveMeta(){ try{ localStorage.setItem('winkify_ocm',JSON.stringify(OFF.meta)); }catch(e){} }
+function offSaveCfg(){ try{ localStorage.setItem('winkify_oc',JSON.stringify({on:OFF.on,limitMB:OFF.limitMB})); }catch(e){} }
+const OFF_FIELDS = ['id','title','artist','artistId','album','albumId','coverArt','duration','track','discNumber','year','genre','contentType'];
+
+async function offInitSW(){
+  if(!('serviceWorker' in navigator) || !('caches' in window) || location.protocol==='file:' || !window.isSecureContext){
+    OFF.sw='unsupported'; OFF.swErr = location.protocol==='file:' ? 'la pagina è aperta da file locale' : 'serve una pagina https';
+    offUI(); return;
+  }
+  navigator.serviceWorker.addEventListener('message',e=>{ const d=e.data||{}; if(d.t==='ver'){ OFF.ver=d.v; offUI(); } });
+  try{
+    const first=!navigator.serviceWorker.controller;
+    const reg=await navigator.serviceWorker.register('sw.js');
+    OFF_SCOPE=reg.scope; OFF.reg=reg;
+    await navigator.serviceWorker.ready;
+    OFF.sw='ok';
+    if(first) swPost({t:'shell',url:location.href});
+    swPost({t:'ver'});
+    if(NAV.ok===false) swPost({t:'nav',down:true});
+    await offReconcile();
+  }catch(e){
+    OFF.sw='missing'; OFF.swErr=(e&&e.message)||String(e);
+  }
+  offUI(); try{ renderLibrary(); }catch(e){}
+}
+/* toglie dai registri i brani che il browser ha eventualmente cancellato, e i file senza registro */
+async function offReconcile(){
+  if(!offOK()) return;
+  try{
+    const c=await caches.open(OFF_AUDIO), keys=await c.keys(), have=new Set(), mark='__track/';
+    for(const r of keys){ const i=r.url.indexOf(mark); if(i>=0) have.add(decodeURIComponent(r.url.slice(i+mark.length))); }
+    let ch=false;
+    for(const id of Object.keys(OFF.meta)) if(!have.has(id)){ delete OFF.meta[id]; ch=true; }
+    for(const id of have) if(!OFF.meta[id]) await c.delete(OFF_SCOPE+mark+encodeURIComponent(id));
+    if(ch) offSaveMeta();
+  }catch(e){}
+}
+async function offPersist(){
+  try{
+    if(navigator.storage && navigator.storage.persisted){
+      OFF.persisted = await navigator.storage.persisted();
+      if(!OFF.persisted && navigator.storage.persist) OFF.persisted = await navigator.storage.persist();
+    }
+  }catch(e){}
+}
+/* le copertine nelle misure usate dall'app, cosi' si vedono anche offline */
+function offCovers(song){
+  if(!song || !song.coverArt) return;
+  [48,96,128,300,600].forEach(sz=>{ try{ const im=new Image(); im.decoding='async'; im.src=coverUrl(song.coverArt,sz); }catch(e){} });
+}
+async function offPut(song, blob, type){
+  if(!offOK() || !song || !blob || !blob.size) return false;
+  const store=async()=>{
+    const c=await caches.open(OFF_AUDIO);
+    await c.put(offKey(song.id), new Response(blob,{status:200,headers:{'Content-Type':type||blob.type||'audio/mpeg','Content-Length':String(blob.size)}}));
+  };
+  try{
+    try{ await store(); }
+    catch(e){
+      if(e && e.name==='QuotaExceededError'){ await offEvict(true); await store(); } else throw e;
+    }
+    const m={bytes:blob.size,t:Date.now(),last:Date.now()}; OFF_FIELDS.forEach(k=>{ if(song[k]!=null) m[k]=song[k]; });
+    OFF.meta[song.id]=m; offSaveMeta();
+    offCovers(song);
+    if(OFF.persisted===null) offPersist();
+    await offEvict(false);
+    offListsRefresh();
+    return true;
+  }catch(e){
+    if(!OFF.warnQuota){ OFF.warnQuota=true; toast('Spazio del browser esaurito: libera spazio o cancella la cache',6000); }
+    return false;
+  }
+}
+/* scarica per intero un brano e lo salva (uno alla volta) */
+function offEnqueue(song, force=false){
+  if(!offOK() || !song || offHas(song.id) || OFF.busy===song.id || OFF.queue.some(x=>x.song.id===song.id)) return;
+  if(!force && (!OFF.on || NAV.ok===false)) return;
+  if(!force && OFF.tried[song.id] && Date.now()-OFF.tried[song.id]<10*60000) return;
+  return new Promise(res=>{ OFF.queue.push({song,force,res}); offPump(); });
+}
+async function offPump(){
+  if(OFF.busy || !OFF.queue.length) return;
+  const {song,force,res}=OFF.queue.shift(); OFF.busy=song.id;
+  let ok=false;
+  try{
+    if(offHas(song.id)){ ok=true; }
+    else{
+      const ctl=new AbortController(); OFF.ctl=ctl;
+      const r=await fetch(apiUrl('stream',{id:song.id}),{signal:ctl.signal});
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      const type=(r.headers.get('content-type')||'').split(';')[0].trim().toLowerCase();
+      if(!/^(audio\/|video\/|application\/ogg|application\/octet-stream)/.test(type)) throw new Error('non è un file audio');
+      if((+r.headers.get('content-length')||0)>OFF.cap) throw new Error('file troppo grande');
+      const rd=r.body.getReader(), parts=[]; let n=0;
+      for(;;){ const {done,value}=await rd.read(); if(done) break; parts.push(value); n+=value.length; if(n>OFF.cap){ ctl.abort(); throw new Error('file troppo grande'); } }
+      ok=await offPut(song,new Blob(parts,{type}),type);
+    }
+  }catch(e){ ok=false; if(e && e.name!=='AbortError' && e instanceof TypeError) navFail(); }
+  if(!ok) OFF.tried[song.id]=Date.now();
+  OFF.busy=null; OFF.ctl=null; res(ok); offPump();
+}
+function offTouch(id){ const m=OFF.meta[id]; if(m){ m.last=Date.now(); if(!OFF.touchT){ OFF.touchT=setTimeout(()=>{ OFF.touchT=0; offSaveMeta(); },2000); } } }
+/* tiene la cache sotto il limite togliendo i brani ascoltati meno di recente (mai quello in corso e il prossimo) */
+async function offEvict(force){
+  const lim=OFF.limitMB*1048576; let total=offBytes();
+  if(!force && total<=lim) return;
+  const protect=new Set([cur()&&cur().id, XF.pre&&XF.pre.id].filter(Boolean));
+  const ids=Object.keys(OFF.meta).filter(i=>!protect.has(i)).sort((a,b)=>(OFF.meta[a].last||0)-(OFF.meta[b].last||0));
+  const target = force ? Math.min(total,lim)*0.7 : lim;       /* si toglie solo quanto basta per rientrare nel limite */
+  try{
+    const c=await caches.open(OFF_AUDIO);
+    for(const id of ids){ if(total<=target) break; total-=OFF.meta[id].bytes||0; await c.delete(offKey(id)); delete OFF.meta[id]; }
+  }catch(e){}
+  offSaveMeta();
+}
+async function offRemove(id){
+  try{ await (await caches.open(OFF_AUDIO)).delete(offKey(id)); }catch(e){}
+  delete OFF.meta[id]; offSaveMeta(); offListsRefresh();
+}
+async function offClearAll(){
+  if(OFF.ctl){ try{ OFF.ctl.abort(); }catch(e){} }
+  OFF.queue.splice(0).forEach(x=>x.res(false));
+  for(const n of [OFF_AUDIO,OFF_COVERS,OFF_DATA]){ try{ await caches.delete(n); }catch(e){} }
+  OFF.meta={}; OFF.tried={}; offSaveMeta();
+  offListsRefresh();
+}
+function offListsRefresh(){
+  try{ renderLibrary(); }catch(e){}
+  if(location.hash==='#/cache') try{ route(); }catch(e){}
+  offUI();
+}
+/* "Salva in cache" dal menu del brano */
+async function offSaveNow(song){
+  if(!offOK()){ toast('La cache non è attiva: serve il file sw.js accanto a index.html'); return; }
+  if(NAV.ok===false){ toast('Serve la connessione al server per salvare il brano'); return; }
+  toast('Scarico «'+song.title+'»…');
+  const ok=await offEnqueue(song,true);
+  toast(ok ? 'Salvato nella cache' : 'Non sono riuscito a salvare il brano');
+}
+/* con il server spento si saltano i brani che non sono in cache */
+function offNextIdx(dir){
+  if(!P.queue.length) return -1;
+  const n=P.queue.length;
+  for(let k=1;k<=n;k++){
+    let j=P.i+dir*k;
+    if(j<0||j>=n){ if(P.repeat!==1) return -1; j=((j%n)+n)%n; }
+    if(offHas(P.queue[j].id)) return j;
+  }
+  return -1;
+}
+const offOffline = () => NAV.ok===false && offOK();
+/* avvio del salvataggio automatico: un brano si salva dopo qualche secondo di ascolto (non scorrendo la coda) */
+AB.addEventListener('timeupdate',()=>{
+  if(!OFF.on || !offOK() || CAST.on || VID_ON() || NAV.ok===false) return;
+  const s=cur(); if(!s || offHas(s.id) || OFF.busy===s.id || audio.paused) return;
+  const need=Math.min(OFF.after, (s.duration||OFF.after*2)*.5);
+  if(audio.currentTime>=need) offEnqueue(s);
+});
+
+/* ---------- vista "Brani in cache" ---------- */
+function vCache(){
+  const songs=Object.values(OFF.meta).sort((a,b)=>(b.last||0)-(a.last||0));
+  const bytes=offBytes(), ctx='cache:x';
+  const html = `<div class="hd"><div class="cov likedhd" style="background:linear-gradient(135deg,#1ed760,#0b6b30);box-shadow:0 4px 60px rgba(0,0,0,.5)">${ic('dl')}</div><div class="meta"><div class="kind">Offline</div><h1>Brani in cache</h1>
+    <div class="info"><b>${songs.length} ${songs.length===1?'brano':'brani'}</b>${bytes?`, <span style="color:#b3b3b3">${fmtB(bytes)}</span>`:''}${NAV.ok===false?' • <span style="color:#ffd666">server non raggiungibile</span>':''}</div></div></div>
+    ${songs.length?actionsBar({ctx})+trackTable(songs,{ctx}):`<div class="empty" style="padding:60px 24px"><h3>Nessun brano in cache</h3>${offOK()?'I brani che ascolti vengono salvati qui e si possono riprodurre anche senza rete.':'La cache non è attiva: serve il file <b>sw.js</b> accanto a <b>index.html</b>, su un indirizzo https.'}</div>`}`;
+  return {html, hero:[11,107,48].map(x=>Math.round(x*.8)), after:refreshHearts};
+}
+function offlineView(){
+  return `<div class="err"><h3>Server non raggiungibile</h3>Questa pagina ha bisogno di Navidrome.${offCount()?'<br><br><a class="pbtn" href="#/cache" style="display:inline-flex">Apri i brani in cache</a>':''}<br><br><button class="pbtn sec" data-act="navping">Riprova</button></div>`;
+}
+
+/* ---------- impostazioni: stato del server e cache ---------- */
+function navUI(){
+  const st=$('#navst'); if(!st) return;
+  const dot=$('#navdot'); const h=esc(navHost());
+  let cls='', txt;
+  if(NAV.busy && NAV.ok===null){ txt=`${h} • verifica in corso…`; }
+  else if(NAV.ok===true){ cls='ok'; txt=`${h} • <span class="nok">Connesso</span>${NAV.ms!=null?` • ${NAV.ms} ms`:''}${NAV.ver?` • Navidrome ${esc(NAV.ver)}`:''}`; }
+  else if(NAV.ok===false){ cls='ko'; txt=`${h} • <span class="nko">Non raggiungibile</span>${NAV.err?': '+esc(NAV.err):''}`; }
+  else txt=`${h} • non ancora verificato`;
+  if(NAV.busy && NAV.ok!==null) txt+=' • verifica…';
+  st.innerHTML=txt; if(dot){ dot.className='ndot '+cls; }
+  const note=$('#navnote'); if(note) note.textContent = NAV.ok===false ? 'Finché il server non risponde puoi ascoltare i brani in cache; il resto torna disponibile appena il server è di nuovo raggiungibile.' : '';
+}
+async function offUI(){
+  if(!$('#setm') || !$('#setm').classList.contains('on')) return;
+  navUI();
+  const sw=$('#oswst'), use=$('#ocuse'), lim=$('#oclim'), on=$('#ocon'), note=$('#ocnote');
+  if(!sw) return;
+  sw.textContent = OFF.sw==='ok' ? `Attiva: l'app si apre anche senza rete${OFF.ver?' (versione '+OFF.ver+')':''}${navigator.serviceWorker && !navigator.serviceWorker.controller ? ' • ricarica la pagina per completare l\'attivazione':''}`
+                : OFF.sw==='missing' ? `Non attiva: manca il file sw.js accanto a index.html (${OFF.swErr||'errore'}). Senza, la cache dei brani e l'uso offline non funzionano.`
+                : OFF.sw==='unsupported' ? `Non disponibile: ${OFF.swErr||'serve una pagina https e un browser compatibile'}.` : 'Controllo in corso…';
+  sw.className = OFF.sw==='ok' ? 'good' : (OFF.sw==='init' ? '' : 'bad');
+  on.checked=OFF.on; on.disabled=!offOK();
+  if(![...lim.options].some(o=>+o.value===OFF.limitMB)){ const o=document.createElement('option'); o.value=OFF.limitMB; o.textContent=fmtLim(OFF.limitMB); lim.appendChild(o); }
+  lim.value=String(OFF.limitMB); lim.disabled=!offOK();
+  $('[data-act=occlear]').disabled=!offCount() && OFF.sw!=='ok';
+  $('[data-act=occache]').disabled=false;
+  let est=''; try{ if(navigator.storage && navigator.storage.estimate){ const e=await navigator.storage.estimate(); if(e && e.quota) est=` • browser: usati ${fmtB(e.usage||0)} su ${fmtB(e.quota)} disponibili`; } }catch(e){}
+  use.textContent = `${offCount()} ${offCount()===1?'brano':'brani'} • ${fmtB(offBytes())} su ${fmtLim(OFF.limitMB)}${est}`;
+  if(OFF.persisted===null && navigator.storage && navigator.storage.persisted){ try{ OFF.persisted=await navigator.storage.persisted(); }catch(e){} }
+  note.textContent = OFF.persisted===true ? 'Archiviazione persistente: il browser non cancella la cache da solo.'
+                   : OFF.persisted===false ? 'Il browser potrebbe svuotare la cache se gli serve spazio. Installare Winkify sulla schermata Home aiuta a evitarlo.' : '';
+}
+let OFF_UI_T=0;
+function offSettingsOpen(){
+  offUI(); navPing();
+  clearInterval(OFF_UI_T); OFF_UI_T=setInterval(()=>{ if(!$('#setm').classList.contains('on')){ clearInterval(OFF_UI_T); return; } if(!NAV.busy && Date.now()-NAV.at>6000) navPing(); offUI(); },3000);
+}
+async function offClearUI(){
+  const n=offCount(), b=offBytes();
+  const ok=await dlg({title:'Cancellare la cache?', text:`Verranno eliminati ${n} ${n===1?'brano':'brani'} (${fmtB(b)}), le copertine e i dati salvati per l'uso offline.\nL'app resta disponibile offline e il tuo Navidrome non viene toccato.`, ok:'Cancella cache', danger:true});
+  if(!ok) return;
+  await offClearAll(); toast('Cache cancellata');
+}
+$('#ocon').addEventListener('change',()=>{ OFF.on=$('#ocon').checked; offSaveCfg(); if(!OFF.on) OFF.queue.splice(0).forEach(x=>x.res(false)); });
+$('#oclim').addEventListener('change',async()=>{ OFF.limitMB=+$('#oclim').value; offSaveCfg(); await offEvict(false); offListsRefresh(); });
+offInitSW();
 /* ---------- IMPOSTAZIONI DI RIPRODUZIONE ---------- */
 function xfLabel(){ return XF.sec===0 ? 'Disattivata' : XF.sec+' '+(XF.sec===1?'secondo':'secondi'); }
 function openSettings(){
@@ -2820,6 +3151,7 @@ function openSettings(){
   $('#xfs').disabled=!XF.canVol;
   ytRefreshUI();
   $('#setm').classList.add('on');
+  offSettingsOpen();
 }
 function closeSettings(){ $('#setm').classList.remove('on'); }
 $('#xfs').addEventListener('input',()=>{ XF.sec=+$('#xfs').value; $('#xfs').style.setProperty('--p',(XF.sec/12*100)+'%'); $('#xfl').textContent=xfLabel(); xfSave(); XF.pre=null; });
@@ -2944,7 +3276,7 @@ async function vHome(){
   html += shelf('Da riscoprire', rd.map(albumCard).join(''));
   if(LIB.playlists.length) html += shelf('Le tue playlist', LIB.playlists.slice(0,20).map(plCard).join(''));
   if(chips) html += `<section class="shelf"><div class="sh"><h2>Esplora per genere</h2></div><div class="gchips">${chips}</div></section>`;
-  if(!nw.length && !rc.length && !rd.length) html += `<div class="empty"><h3>Ancora niente da mostrare</h3>Aggiungi musica al tuo Navidrome per iniziare.</div>`;
+  if(!nw.length && !rc.length && !rd.length) html += NAV.ok===false ? `<div class="empty" style="padding:60px 24px"><h3>Sei offline</h3>Il server non risponde e non ci sono ancora dati salvati per questa pagina.${offCount()?'<br><br><a class="pbtn" href="#/cache" style="display:inline-flex">Apri i brani in cache</a>':''}</div>` : `<div class="empty"><h3>Ancora niente da mostrare</h3>Aggiungi musica al tuo Navidrome per iniziare.</div>`;
   return {html, hero:[70,70,90], heroA:.55};
 }
 

@@ -547,8 +547,9 @@ body.nofs [data-fs]{display:none!important}
    spazio si divide in parti uguali sopra la copertina, tra copertina e riga, tra riga e titolo. */
 .fslot{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;width:100%;height:var(--sh,0px);flex:none}
 .fslot[hidden],.fpv[hidden],.fpline[hidden]{display:none!important}
-.fpv{flex:none;display:inline-flex;align-items:center;gap:10px;background:rgba(0,0,0,.34);color:#fff;font-weight:700;font-size:15px;border-radius:500px;padding:10px 18px 10px 14px;line-height:1}
-.fpv:active{background:rgba(0,0,0,.5);transform:scale(.97)}
+.fpv{flex:none;display:inline-flex;align-items:center;gap:10px;height:32px;background:rgba(0,0,0,.55);color:#fff;font-weight:700;font-size:13px;border-radius:500px;padding:0 16px;line-height:1;white-space:nowrap}
+.fpv svg{width:16px;height:16px;flex:none}
+.fpv:active{background:rgba(0,0,0,.7);transform:scale(.97)}
 .fpline{align-self:stretch;flex:1 1 0px;min-height:0;display:flex;align-items:center;font-weight:700;font-size:16px;line-height:1.3;color:#fff;cursor:pointer}
 .fpline>span{display:block;width:100%;overflow-wrap:anywhere}
 .fpline.lclamp>span{display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden}
@@ -630,9 +631,8 @@ body.vid #fpcov{display:none}
  #fp .ftop .ib{width:40px;height:40px;color:#fff}
  #fp{--sh:0px}
  #fp.hs-l{--sh:80px}
- #fp.hs-p{--sh:58px}
- #fp.hs-lp{--sh:120px}
- #fp.hs-lp .fpv{margin-top:18px}
+ #fp.hs-p{--sh:40px}
+ #fp.hs-lp{--sh:106px}
  #fp .fmid{flex:1 1 0px;min-height:calc(140px + var(--sh) + 30px);display:flex;flex-direction:column;align-items:center;justify-content:space-evenly;container-type:size}
  body.vid #fp .fmid{min-height:calc(max(200px,56.25vw) + var(--sh) + 30px)}
  #fp .fcov{flex:none;display:flex;align-items:center;justify-content:center}
@@ -640,6 +640,14 @@ body.vid #fpcov{display:none}
  #fp[class*="hs-"] .fmid::before{content:"";height:0;margin-top:auto;flex:none}
  #fp[class*="hs-"] .fcov,#fp[class*="hs-"] .fvid{margin-top:auto}
  #fp[class*="hs-"] .fslot{margin-top:auto;margin-bottom:auto}
+ /* solo pulsante: lo spazio libero sta soprattutto sopra la copertina (2 parti contro 1 tra copertina e pulsante), pulsante a 8 px dal titolo (13 px a vista, come Spotify) */
+ #fp.hs-p .fslot{height:32px;margin-top:auto;margin-bottom:8px;justify-content:flex-start}
+ /* con il video il pulsante resta vicino al riquadro (24 px), come sotto la copertina; lo spazio libero sta sopra */
+ body.vid #fp .fslot{margin-top:24px!important}
+ /* riga + pulsante: la riga sta al centro tra copertina e pulsante, il pulsante a 8 px dal titolo (13 px a vista, come Spotify) */
+ #fp.hs-lp .fslot{display:contents}
+ #fp.hs-lp .fpline{flex:none;height:66px;align-self:stretch;margin-top:auto}
+ #fp.hs-lp .fpv{align-self:flex-start;margin-top:auto;margin-bottom:8px}
  #fp .fcov .cov{width:max(140px,min(100cqw,calc(100cqh - var(--sh) - 30px)));height:max(140px,min(100cqw,calc(100cqh - var(--sh) - 30px)));flex:none;border-radius:6px;box-shadow:0 8px 40px rgba(0,0,0,.5)}
  #fp .finfo{display:flex;align-items:center;justify-content:space-between;gap:12px}
  #fp .finfo .t{min-width:0}
@@ -768,7 +776,7 @@ body.vid #fpcov{display:none}
  <div class="fmid" id="fpmid">
  <div class="fcov" id="fpcov"></div>
  <div class="fvid" id="fpvid"><div class="fvbox" id="fpvbox"></div></div>
- <div class="fslot" id="fpslot" hidden><button class="fpv" id="fpvbtn" data-act="vidtoggle" hidden></button><div class="fpline" id="fpline" data-act="lyrics" role="button" aria-label="Apri i testi" hidden><span id="fplt"></span></div></div>
+ <div class="fslot" id="fpslot" hidden><div class="fpline" id="fpline" data-act="lyrics" role="button" aria-label="Apri i testi" hidden><span id="fplt"></span></div><button class="fpv" id="fpvbtn" data-act="vidtoggle" hidden></button></div>
  </div>
  <div class="finfo"><div class="t"><div id="fptitle"></div><div id="fpartist"></div></div><button class="ib heart" id="fpheart" data-act="heartcur"></button></div>
  <div class="fseek"><input type="range" id="fpseek" min="0" max="1000" value="0"><div class="ftimes"><span id="fptcur">0:00</span><span id="fptdur">0:00</span></div></div>
@@ -1796,7 +1804,7 @@ function vidBtn(){
   const s=cur(), el=$('#fpvbtn'); if(!el) return;
   const ok=!!s && !CAST.on && (VID.on || !!VID.avail[s.id]);
   el.hidden=!ok;
-  el.innerHTML = VID.on ? ic('note',20)+'Passa all\'audio' : ic('vid',22)+'Passa a video';
+  el.innerHTML = VID.on ? ic('note',16)+'Passa all\'audio' : ic('vid',16)+'Passa a video';
   slotSync();
 }
 /* ---------- YOUTUBE DATA API (chiave personale gratuita) ---------- */

@@ -974,13 +974,13 @@ function apiUrl(ep, p={}){
 async function api(ep, p={}){
   let r;
   try{ r = await fetch(apiUrl(ep,p)); }
-  catch(e){ if(e instanceof TypeError && ep!=='ping') navFail(); throw e; }
+  catch(e){ if(e instanceof TypeError){ e.net=true; if(ep!=='ping') navFail(); } throw e; }      /* e.net: e' davvero un errore di rete, non un errore del codice */
   if(!r.ok) throw new Error('HTTP '+r.status);
   const stale = r.headers.get('X-Winkify-Cache');          /* risposta data dal service worker con la copia salvata */
   const j = await r.json();
   const s = j['subsonic-response'];
   if(!s || s.status!=='ok') throw new Error(s?.error?.message || 'Errore del server');
-  if(!stale && NAV.ok!==true && ep!=='ping') navSet(true);
+  if(!stale && ep!=='ping'){ NAV.lastOk=Date.now(); if(NAV.ok!==true) navSet(true); }          /* una risposta vera dal server: e' raggiungibile */
   return s;
 }
 const coverUrl = (id, sz=300) => id ? apiUrl('getCoverArt',{id,size:sz}) : '';
@@ -1177,7 +1177,6 @@ function xfSave(){ try{ localStorage.setItem('winkify_xf',JSON.stringify({sec:XF
 /* indice del brano che parte dopo quello in corso (-1 = nessuno / ripeti un brano) */
 function xfNextIdx(){
   if(!P.queue.length || P.repeat===2) return -1;
-  if(offOffline()) return offNextIdx(1);
   if(P.i < P.queue.length-1) return P.i+1;
   if(P.repeat===1 && P.queue.length>1) return 0;
   return -1;
@@ -1340,18 +1339,12 @@ function load(){
   PS.own = true;
   const pre = XF.pre;
   if(!CAST.on && pre && pre.ready && pre.id===s.id && pre.idx===P.i && pre.el.readyState>=2){ xfPromote(pre,0,false); }
-  else{ xfStopFade(); audio.src = apiUrl('stream',{id:s.id}); audio.play().catch(()=>toast(offOffline() && !offHas(s.id) ? 'Questo brano non è in cache e il server non è raggiungibile' : 'Impossibile avviare la riproduzione')); }
+  else{ xfStopFade(); audio.src = apiUrl('stream',{id:s.id}); audio.play().catch(()=>toast(NAV.ok===false && !offHas(s.id) ? 'Questo brano non è in cache e il server non è raggiungibile' : 'Impossibile avviare la riproduzione')); }
   afterLoad(s);
 }
 function next(auto=false){
   if(!P.queue.length) return;
   if(auto && P.repeat===2){ audio.currentTime=0; audio.play(); return; }
-  if(offOffline()){
-    const j=offNextIdx(1);
-    if(j>=0){ P.i=j; ADV.auto=auto; load(); }
-    else{ if(auto){ audio.pause(); audio.currentTime=0; updateUI(); } toast('Nessun altro brano disponibile offline'); }
-    return;
-  }
   if(P.i < P.queue.length-1){ P.i++; ADV.auto=auto; load(); }
   else if(P.repeat===1){ P.i=0; ADV.auto=auto; load(); }
   else if(auto){ audio.pause(); audio.currentTime=0; updateUI(); }
@@ -1359,7 +1352,6 @@ function next(auto=false){
 function prev(){
   if(!P.queue.length) return;
   if(audio.currentTime>3){ audio.currentTime=0; return; }
-  if(offOffline()){ const j=offNextIdx(-1); if(j>=0){ P.i=j; load(); } else audio.currentTime=0; return; }
   P.i = P.i>0 ? P.i-1 : (P.repeat===1 ? P.queue.length-1 : 0); load();
 }
 function togglePlay(){ if(!cur()) return; audio.paused ? audio.play() : audio.pause(); }
@@ -1411,8 +1403,11 @@ audio.addEventListener('play',updateUI);
 audio.addEventListener('pause',updateUI);
 audio.addEventListener('error',()=>{
   const s=cur(); if(!s || PS.restoring) return;
-  if(NAV.ok===false && !offHas(s.id)) toast('Questo brano non è in cache e il server non è raggiungibile');
-  else{ toast('Errore di riproduzione del brano'); navFail(); }
+  if(NAV.ok===false && !offHas(s.id)){
+    const j=offNextCached(1);
+    if(j>=0){ toast('Brano non in cache e server non raggiungibile: passo al prossimo disponibile offline'); P.i=j; load(); return; }
+    toast('Questo brano non è in cache e il server non è raggiungibile');
+  }else{ toast('Errore di riproduzione del brano'); navFail(); }
 });
 
 function setRange(el,val){ el.value=val; el.style.setProperty('--p',(val/el.max*100)+'%'); }
@@ -2678,7 +2673,7 @@ async function route(){
   LISTS.length=0;
   let r;
   try{ r=await (views[name]||vHome)(arg); }
-  catch(e){ if(my!==rid) return; r={html:(e instanceof TypeError || NAV.ok===false) ? offlineView() : `<div class="err"><h3>Qualcosa è andato storto</h3>${esc(e.message)}</div>`,hero:null}; }
+  catch(e){ if(my!==rid) return; r={html:(e && e.net) ? offlineView() : `<div class="err"><h3>Qualcosa è andato storto</h3>${esc(e.message)}</div>`,hero:null}; }
   if(my!==rid) return;
   $('#view').innerHTML=r.html; setHero(r.hero,r.heroA||1);
   $('#main').scrollTop=0; lastName=name;
@@ -2859,7 +2854,11 @@ $('#lform').addEventListener('submit',async e=>{
   }finally{ $('#lbtn').disabled=false; $('#lbtn').textContent='Accedi'; }
 });
 /* ---------- STATO DEL SERVER NAVIDROME ---------- */
-const NAV = {ok:null, ms:null, ver:null, err:'', at:0, busy:false, timer:0, soon:0};
+/* Regole: lo stato e' solo un'INFORMAZIONE (barra e impostazioni): non blocca mai nessuna azione.
+   Il server e' "non raggiungibile" solo dopo due controlli falliti a 3 secondi l'uno dall'altro, ciascuno con due richieste diverse (ping e
+   getMusicFolders) e 12 secondi di pazienza; e solo se nessuna richiesta vera e' andata a buon fine negli ultimi 30 secondi. Un server lento
+   non e' un server spento. Qualsiasi risposta del server (anche un errore di autenticazione) vale come "raggiungibile". */
+const NAV = {ok:null, ms:null, ver:null, err:'', warn:'', at:0, busy:false, timer:0, soon:0, lastOk:0};
 function swPost(msg){
   try{
     const c = navigator.serviceWorker && (navigator.serviceWorker.controller || (OFF.reg && OFF.reg.active));
@@ -2869,44 +2868,71 @@ function swPost(msg){
 const navHost = () => { try{ return new URL(S.server).host; }catch(e){ return S ? S.server : ''; } };
 function navSet(ok, err=''){
   const was=NAV.ok; NAV.ok=ok; NAV.err=ok?'':err; NAV.at=Date.now();
-  swPost({t:'nav', down:!ok});
   if(was!==ok){
+    swPost({t:'nav', down:!ok});
     navBanner();
     if(ok && was===false){ toast('Server Navidrome di nuovo raggiungibile'); try{ loadLibrary(); }catch(e){} if(location.hash==='#/home'||!location.hash) try{ route(); }catch(e){} }
     if(!ok && was!==null) toast('Server Navidrome non raggiungibile: restano disponibili i brani in cache', 5000);
   }
   navUI();
 }
+/* una singola richiesta di controllo */
+async function navProbe(ep, ms){
+  const ctl=new AbortController(), to=setTimeout(()=>ctl.abort(),ms);
+  try{
+    const r=await fetch(apiUrl(ep,{_:Date.now()}),{signal:ctl.signal,cache:'no-store',priority:'high'});
+    let j=null; try{ j=await r.json(); }catch(e){}
+    const s=j && j['subsonic-response'];
+    if(s && s.status!=='ok'){ const e=new Error((s.error&&s.error.message)||'errore del server'); e.alive=true; throw e; }   /* il server risponde */
+    if(!r.ok) throw Object.assign(new Error('HTTP '+r.status),{http:r.status});
+    if(!s) throw new Error('risposta non valida');
+    return s;
+  }finally{ clearTimeout(to); }
+}
+const navKind = e => e.http ? 'http' : e.name==='AbortError' ? 'timeout' : 'net';       /* net = rifiuto immediato (spento, DNS, offline, CORS) */
+const navWhy = e => e.alive ? e.message : e.http ? 'il server ha risposto HTTP '+e.http : e.name==='AbortError' ? 'nessuna risposta entro 12 secondi'
+  : e instanceof TypeError ? (navigator.onLine===false ? 'il dispositivo è offline' : 'richiesta bloccata (rete, indirizzo o CORS)') : (e.message||'errore');
+/* una tornata: ping e getMusicFolders in parallelo, vince la prima risposta del server */
+function navRound(){
+  const t0=performance.now();
+  return new Promise(resolve=>{
+    let n=0; const kinds=[]; let last=null;
+    ['ping','getMusicFolders'].forEach(ep=>navProbe(ep,12000).then(
+      s=>resolve({ok:true,s,ms:Math.round(performance.now()-t0)}),
+      e=>{ if(e.alive) resolve({ok:true,warn:e.message,ms:Math.round(performance.now()-t0)}); else { last=e; kinds.push(navKind(e)); if(++n===2) resolve({ok:false,err:navWhy(last),soft:kinds.every(k=>k!=='net')}); } }));
+  });
+}
 async function navPing(){
   if(!S) return NAV.ok;
   if(NAV.busy) return NAV.ok;
   NAV.busy=true; navUI();
-  const t0=performance.now(), ctl=new AbortController(), to=setTimeout(()=>ctl.abort(),7000);
-  let ok=false, err='';
+  let res=null;
   try{
-    const r=await fetch(apiUrl('ping',{_:Date.now()}),{signal:ctl.signal});
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    const s=(await r.json())['subsonic-response'];
-    if(!s || s.status!=='ok') throw new Error((s&&s.error&&s.error.message)||'risposta non valida');
-    ok=true; NAV.ms=Math.round(performance.now()-t0); NAV.ver=s.serverVersion||null;
-  }catch(e){
-    err = e.name==='AbortError' ? 'nessuna risposta entro 7 secondi'
-        : (e instanceof TypeError ? (navigator.onLine===false ? 'il dispositivo è offline' : 'server irraggiungibile (rete, indirizzo o CORS)') : e.message);
-  }
-  clearTimeout(to); NAV.busy=false; navSet(ok,err);
-  return ok;
+    for(let a=0;a<2;a++){
+      if(a) await new Promise(r=>setTimeout(r,3000));
+      res=await navRound();
+      if(res.ok) break;
+    }
+  }catch(e){ res={ok:false,err:(e&&e.message)||'errore'}; }
+  NAV.busy=false;
+  if(res.ok){
+    NAV.lastOk=Date.now(); NAV.ms=res.ms!=null?res.ms:NAV.ms; if(res.s) NAV.ver=res.s.serverVersion||NAV.ver; NAV.warn=res.warn||'';
+    navSet(true);
+  }else if(res.soft && Date.now()-NAV.lastOk<30000){
+    navSet(true);                                  /* il controllo e' lento o in errore, ma una richiesta vera e' riuscita da poco: il server c'e' */
+  }else navSet(false,res.err||'nessuna risposta');
+  return NAV.ok;
 }
-/* una richiesta fallita non basta a dire "offline": si controlla con un ping (una sola volta ogni tanto) */
-function navFail(){ if(NAV.ok===false || NAV.soon) return; NAV.soon=setTimeout(()=>{ NAV.soon=0; navPing(); },700); }
+/* una richiesta fallita non basta a dire "offline": si controlla (con la conferma di navPing) */
+function navFail(){ if(NAV.ok===false || NAV.soon || NAV.busy) return; NAV.soon=setTimeout(()=>{ NAV.soon=0; navPing(); },1500); }
 function navStart(){
-  if(navigator.onLine===false) navSet(false,'il dispositivo è offline');
   navPing();
   clearInterval(NAV.timer);
   NAV.timer=setInterval(()=>{ if(document.visibilityState==='visible' && S) navPing(); }, 30000);
 }
-window.addEventListener('online',()=>{ if(S) navPing(); });
-window.addEventListener('offline',()=>{ if(S) navSet(false,'il dispositivo è offline'); });
-document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible' && S && NAV.ok!==null && Date.now()-NAV.at>8000) navPing(); });
+window.addEventListener('online',()=>{ if(S) setTimeout(navPing,800); });
+window.addEventListener('offline',()=>{ if(S) navPing(); });       /* l'evento da solo non basta: su Android a volte e' sbagliato */
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible' && S && NAV.ok!==null && Date.now()-NAV.at>8000) setTimeout(navPing,1200); });
 function navBanner(){ const b=$('#offbar'); if(b) b.hidden = NAV.ok!==false; }
 
 /* ---------- CACHE OFFLINE (brani nel browser, come in Spotify) ---------- */
@@ -2936,6 +2962,7 @@ async function offInitSW(){
     const first=!navigator.serviceWorker.controller;
     const reg=await navigator.serviceWorker.register('sw.js');
     OFF_SCOPE=reg.scope; OFF.reg=reg;
+    try{ reg.update().catch(()=>{}); }catch(e){}        /* prende subito un sw.js aggiornato (se non riesce, pazienza) */
     await navigator.serviceWorker.ready;
     OFF.sw='ok';
     if(first) swPost({t:'shell',url:location.href});
@@ -2998,7 +3025,7 @@ async function offPut(song, blob, type){
 /* scarica per intero un brano e lo salva (uno alla volta) */
 function offEnqueue(song, force=false){
   if(!offOK() || !song || offHas(song.id) || OFF.busy===song.id || OFF.queue.some(x=>x.song.id===song.id)) return;
-  if(!force && (!OFF.on || NAV.ok===false)) return;
+  if(!force && !OFF.on) return;
   if(!force && OFF.tried[song.id] && Date.now()-OFF.tried[song.id]<10*60000) return;
   return new Promise(res=>{ OFF.queue.push({song,force,res}); offPump(); });
 }
@@ -3056,26 +3083,24 @@ function offListsRefresh(){
 /* "Salva in cache" dal menu del brano */
 async function offSaveNow(song){
   if(!offOK()){ toast('La cache non è attiva: serve il file sw.js accanto a index.html'); return; }
-  if(NAV.ok===false){ toast('Serve la connessione al server per salvare il brano'); return; }
   toast('Scarico «'+song.title+'»…');
   const ok=await offEnqueue(song,true);
   toast(ok ? 'Salvato nella cache' : 'Non sono riuscito a salvare il brano');
 }
-/* con il server spento si saltano i brani che non sono in cache */
-function offNextIdx(dir){
+/* prossimo brano della coda che e' in cache (usato solo dopo che un brano NON in cache non e' riuscito a partire) */
+function offNextCached(dir){
   if(!P.queue.length) return -1;
   const n=P.queue.length;
-  for(let k=1;k<=n;k++){
+  for(let k=1;k<n;k++){
     let j=P.i+dir*k;
     if(j<0||j>=n){ if(P.repeat!==1) return -1; j=((j%n)+n)%n; }
     if(offHas(P.queue[j].id)) return j;
   }
   return -1;
 }
-const offOffline = () => NAV.ok===false && offOK();
 /* avvio del salvataggio automatico: un brano si salva dopo qualche secondo di ascolto (non scorrendo la coda) */
 AB.addEventListener('timeupdate',()=>{
-  if(!OFF.on || !offOK() || CAST.on || VID_ON() || NAV.ok===false) return;
+  if(!OFF.on || !offOK() || CAST.on || VID_ON()) return;
   const s=cur(); if(!s || offHas(s.id) || OFF.busy===s.id || audio.paused) return;
   const need=Math.min(OFF.after, (s.duration||OFF.after*2)*.5);
   if(audio.currentTime>=need) offEnqueue(s);
@@ -3100,7 +3125,7 @@ function navUI(){
   const dot=$('#navdot'); const h=esc(navHost());
   let cls='', txt;
   if(NAV.busy && NAV.ok===null){ txt=`${h} • verifica in corso…`; }
-  else if(NAV.ok===true){ cls='ok'; txt=`${h} • <span class="nok">Connesso</span>${NAV.ms!=null?` • ${NAV.ms} ms`:''}${NAV.ver?` • Navidrome ${esc(NAV.ver)}`:''}`; }
+  else if(NAV.ok===true){ cls='ok'; txt=`${h} • <span class="nok">Connesso</span>${NAV.ms!=null?` • ${NAV.ms} ms`:''}${NAV.ver?` • Navidrome ${esc(NAV.ver)}`:''}${NAV.warn?` • <span class="nko">il server risponde con un errore: ${esc(NAV.warn)}</span>`:''}`; }
   else if(NAV.ok===false){ cls='ko'; txt=`${h} • <span class="nko">Non raggiungibile</span>${NAV.err?': '+esc(NAV.err):''}`; }
   else txt=`${h} • non ancora verificato`;
   if(NAV.busy && NAV.ok!==null) txt+=' • verifica…';

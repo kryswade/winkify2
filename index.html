@@ -3241,7 +3241,7 @@ function handleAct(a,e){
     case 'radioplay': e.preventDefault(); e.stopPropagation(); radioArtist(a.dataset.id); break;
     case 'thisplay': { e.preventDefault(); e.stopPropagation(); const id=a.dataset.id; if(P.ctx==='artist:'+id && cur()) togglePlay(); else playEntity('artist',id); break; }
     case 'hsplay': { const m=MIX[a.dataset.mix]; if(m) playList(m.songs,+a.dataset.i,{ctx:'mix:'+a.dataset.mix}); break; }
-    case 'hsmore': { e.stopPropagation(); const m=MIX[a.dataset.mix], s=m&&m.songs[+a.dataset.i]; if(!s) break; const r=a.getBoundingClientRect(); showMenu(r.left-190,r.bottom,songMenu(s)); break; }
+    case 'hsmore': { e.stopPropagation(); const m=MIX[a.dataset.mix], s=m&&m.songs[+a.dataset.i]; if(s) openSongSheet(s); break; }
     case 'sgenres': { const el=$('#sbrowse'); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); break; }
     case 'libview': LIB.view=LIB.view==='grid'?'list':'grid'; renderLibrary(); break;
     case 'usermenu': openDrawer(); e.stopPropagation(); break;
@@ -4004,7 +4004,7 @@ $('#xfa').addEventListener('change',()=>{ XF.album=$('#xfa').checked; xfSave(); 
 
 /* ---------- MENU DEL BRANO (foglio dal basso, trascinabile come in Spotify) ---------- */
 /* Si apre a meta' schermo; trascinandolo verso l'alto si espande, verso il basso si richiude. */
-const SHT = {open:false, view:'main', state:'peek', Y:0, Hf:0, peekY:0, closedY:0, pushed:false, closing:false, after:null, g:null, noclick:0};
+const SHT = {song:null, open:false, view:'main', state:'peek', Y:0, Hf:0, peekY:0, closedY:0, pushed:false, closing:false, after:null, g:null, noclick:0};
 const slpActive = () => !!(SLP.end || SLP.eot);
 function slpLabel(){ if(SLP.eot) return 'Fine del brano'; const m=Math.max(1,Math.ceil((SLP.end-Date.now())/60000)); return m+' min'; }
 function slpClear(){ SLP.end=0; SLP.eot=false; SLP.sel=null; clearInterval(SLP.tm); SLP.tm=0; clearInterval(SLP.fade); SLP.fade=0; XV.s=1; xfApplyVol(); vidVol(); }
@@ -4057,6 +4057,9 @@ function shSnap(y, animate=true){ SHT.state = y===0 ? 'full' : 'peek'; shEl().cl
 
 /* ----- contenuto ----- */
 const shRow = (k,icon,text,cls='') => `<button class="shi" data-act="shitem" data-k="${k}"><span class="shi-i ${cls}">${icon}</span><span class="shi-t">${text}</span></button>`;
+/* il foglio si apre per il brano in riproduzione oppure, dalla Home, per il brano toccato */
+const shSong = () => SHT.song || cur();
+const shIsCur = () => !SHT.song || (!!cur() && cur().id===SHT.song.id);
 function shMainHtml(s){
   if(s.pod){
     let p='';
@@ -4070,8 +4073,10 @@ function shMainHtml(s){
   }
   const liked=starred.has(s.id), cached=offHas(s.id);
   let h='';
-  h+=shRow('share',ic('share',24),'Condividi');
-  h+=shRow('lyl',ic(LYL.on?'cc':'ccO',24),'Testo • '+(LYL.on?'On':'Off'),'raw');
+  if(shIsCur()){        /* Condividi e Testo riguardano il punto raggiunto nel brano che sta suonando */
+    h+=shRow('share',ic('share',24),'Condividi');
+    h+=shRow('lyl',ic(LYL.on?'cc':'ccO',24),'Testo • '+(LYL.on?'On':'Off'),'raw');
+  }
   h+=shRow('like',ic(liked?'likedC':'likeT',24),liked?'Rimuovi da Brani che ti piacciono':'Aggiungi a Brani che ti piacciono','raw');
   h+=shRow('pl',ic('plusc',24),'Aggiungi alla playlist');
   h+=shRow('queue+',ic('addq',24),'Aggiungi in coda');
@@ -4097,7 +4102,7 @@ function shTimerHtml(){
   return h;
 }
 function shRender(){
-  const s=cur(); if(!s) return;
+  const s=shSong(); if(!s) return;
   const hd=$('#shhd'), l=$('#shsl');
   if(SHT.view==='main'){
     hd.innerHTML='<span class="shcv">'+cov(s.coverArt,96)+'</span><span class="sht"><b>'+esc(s.title)+'</b><i>'+esc(s.artist||'')+'</i></span>';
@@ -4111,8 +4116,9 @@ function shRender(){
 function shView(v){ SHT.view=v; shRender(); $('#shsl').scrollTop=0; if(v!=='main') shSnap(0,true); }
 
 /* ----- apertura / chiusura (il tasto indietro del telefono chiude il foglio) ----- */
-function openSongSheet(){
-  const s=cur(); if(!s) return;
+function openSongSheet(song){
+  SHT.song = (song && song.id) ? song : null;
+  const s=shSong(); if(!s) return;
   SHT.view='main'; shRender(); $('#shsl').scrollTop=0;
   $('#shs').classList.add('on');
   shGeom(); shEl().classList.remove('full','anim'); shApply(SHT.closedY,false); void shEl().offsetHeight;
@@ -4121,7 +4127,7 @@ function openSongSheet(){
   shSnap(SHT.peekY,true);
 }
 function hideSheet(){
-  SHT.open=false; SHT.pushed=false; SHT.closing=false;
+  SHT.open=false; SHT.pushed=false; SHT.closing=false; SHT.song=null;
   shApply(SHT.closedY,true);
   setTimeout(()=>{ if(!SHT.open) $('#shs').classList.remove('on'); },300);
   const a=SHT.after; SHT.after=null; if(a) setTimeout(a,0);
@@ -4145,7 +4151,7 @@ window.addEventListener('resize',()=>{ if(!SHT.open) return; const was=SHT.state
 
 /* ----- azioni ----- */
 function shAct(k){
-  const s=cur(); if(!s) return;
+  const s=shSong(); if(!s) return;
   switch(k){
     case 'share': closeSheet(()=>openShare()); break;
     case 'lyl':
@@ -4162,16 +4168,16 @@ function shAct(k){
     case 'cache': if(offHas(s.id)){ offRemove(s.id); toast('Rimosso dalla cache'); } else offSaveNow(s); closeSheet(); break;
     case 'settings': closeSheet(()=>openSettings('playback')); break;
     case 'show': closeSheet(()=>{ closeFp(); location.hash='#/show/'+s.showId; }); break;
-    case 'speed': { const L=[0.75,1,1.25,1.5,1.75,2]; const i=L.indexOf(POD.speed); POD.speed=L[(i+1)%L.length]; try{ localStorage.setItem('winkify_pod_speed',String(POD.speed)); }catch(x){} podApplySpeed(s); shRender(); break; }
+    case 'speed': { const L=[0.75,1,1.25,1.5,1.75,2]; const i=L.indexOf(POD.speed); POD.speed=L[(i+1)%L.length]; try{ localStorage.setItem('winkify_pod_speed',String(POD.speed)); }catch(x){} podApplySpeed(cur()); shRender(); break; }
   }
 }
 async function shAddToPl(id){
-  const s=cur(), p=LIB.playlists.find(x=>x.id===id); closeSheet();
+  const s=shSong(), p=LIB.playlists.find(x=>x.id===id); closeSheet();
   try{ await api('updatePlaylist',{playlistId:id,songIdToAdd:[s.id]}); toast('Aggiunto a «'+(p?p.name:'playlist')+'»'); refreshPlaylists(); }
   catch(e){ toast('Non riesco ad aggiungere il brano: '+e.message); }
 }
 async function shNewPl(){
-  const s=cur(); const n=await dlg({title:'Nuova playlist', input:s.title||'', ok:'Crea'});
+  const s=shSong(); const n=await dlg({title:'Nuova playlist', input:s.title||'', ok:'Crea'});
   if(n==null) return; const name=n.trim(); if(!name) return;
   closeSheet();
   try{ await api('createPlaylist',{name,songId:[s.id]}); toast('Playlist «'+name+'» creata'); refreshPlaylists(); }

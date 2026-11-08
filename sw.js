@@ -1,4 +1,4 @@
-/* Winkify — service worker (v1)
+/* Winkify — service worker (v2)
    Va messo nella STESSA cartella di index.html (stesso indirizzo, es. https://tuo-sito/sw.js).
    Serve a:
    1) aprire l'app anche senza rete: l'index.html resta salvato nel browser e si aggiorna da solo quando sei online;
@@ -6,18 +6,15 @@
    3) tenere le copertine e i dati di sola lettura di Navidrome per sfogliare anche offline.
    Le credenziali (utente, token) non entrano mai nelle chiavi di cache. */
 'use strict';
-const VER = '1';
+const VER = '2';
 const SHELL  = 'winkify-shell-v' + VER;
 const AUDIO  = 'winkify-audio-v1';     /* scritta dalla pagina, letta da qui */
 const COVERS = 'winkify-covers-v1';
 const DATA   = 'winkify-data-v1';
 const SCOPE  = self.registration.scope;
-let serverDown = false;                /* la pagina avvisa quando Navidrome non risponde: si va subito alla copia salvata */
+let serverDown = false;                /* indicazione della pagina: serve SOLO ad accorciare l'attesa prima di usare la copia salvata, mai a rifiutare richieste */
 
-const withTimeout = (p, ms) => new Promise((res, rej) => {
-  const t = setTimeout(() => rej(new Error('timeout')), ms);
-  p.then(v => { clearTimeout(t); res(v); }, e => { clearTimeout(t); rej(e); });
-});
+const keep = (ev, p) => { try { ev.waitUntil(Promise.resolve(p).catch(() => {})); } catch (_) {} };
 const bare = href => { const u = new URL(href); u.search = ''; u.hash = ''; return u.href; };
 async function trim(cache, max, drop) {
   try { const ks = await cache.keys(); if (ks.length > max) for (const k of ks.slice(0, drop)) await cache.delete(k); } catch (_) {}
@@ -52,18 +49,19 @@ self.addEventListener('message', e => {
   }
 });
 
-/* ---------- guscio dell'app: rete per prima (cosi' si ricevono gli aggiornamenti), copia salvata se manca la rete ---------- */
-async function shell(req) {
+/* ---------- guscio dell'app: rete per prima (cosi' si ricevono gli aggiornamenti); se e' lenta o assente, copia salvata ---------- */
+async function shell(req, ev) {
   const c = await caches.open(SHELL), key = bare(req.url);
+  const net = (async () => { const r = await fetch(req); if (r && r.ok) c.put(key, r.clone()); return r; })();
+  const cached = (await c.match(key)) || (await c.match(SCOPE)) || (await c.match(SCOPE + 'index.html'));
+  if (!cached) return net.catch(() => new Response('Winkify non è ancora salvato per l\'uso offline: aprilo una volta con la connessione attiva.',
+    { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } }));
   try {
-    const r = await withTimeout(fetch(req), 5000);
-    if (r && r.ok) c.put(key, r.clone());
-    return r;
-  } catch (_) {
-    return (await c.match(key)) || (await c.match(SCOPE)) || (await c.match(SCOPE + 'index.html')) ||
-      new Response('Winkify non è ancora salvato per l\'uso offline: aprilo una volta con la connessione attiva.',
-        { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
-  }
+    const r = await Promise.race([net, new Promise(res => setTimeout(() => res(null), 4000))]);
+    if (r) return r;
+    keep(ev, net);                       /* la rete continua e aggiorna la copia */
+    return cached;
+  } catch (_) { return cached; }
 }
 
 /* ---------- brani: dalla cache se ci sono (con supporto a Range), altrimenti dalla rete ---------- */
@@ -93,7 +91,8 @@ async function audio(req, url) {
   return fetch(req);
 }
 
-/* ---------- copertine: una volta viste restano (l'id cambia quando cambia l'immagine) ---------- */
+/* ---------- copertine: una volta viste restano (l'id cambia quando cambia l'immagine). Mai rifiutate in anticipo. ---------- */
+const corsBad = {};                    /* server che non manda le intestazioni CORS per le copertine: si mostrano ma non si salvano */
 async function cover(req, url) {
   const id = url.searchParams.get('id');
   if (!id) return fetch(req);
@@ -101,14 +100,18 @@ async function cover(req, url) {
   const c = await caches.open(COVERS);
   const hit = await c.match(key);
   if (hit) return hit;
-  if (serverDown) return Response.error();
-  try {
-    const r = await withTimeout(fetch(url.href, { mode: 'cors', credentials: 'omit' }), 15000);
-    if (r.ok && /^image\//i.test(r.headers.get('Content-Type') || '')) { c.put(key, r.clone()); trim(c, 2500, 300); }
-    return r;
-  } catch (_) {
-    try { return await fetch(req); } catch (e) { return Response.error(); }   /* senza CORS: si mostra, ma non si salva */
+  if (!corsBad[url.host]) {
+    try {
+      const r = await fetch(url.href, { mode: 'cors', credentials: 'omit' });
+      if (r.ok && /^image\//i.test(r.headers.get('Content-Type') || '')) { c.put(key, r.clone()); trim(c, 2500, 300); }
+      return r;
+    } catch (_) { /* niente CORS o rete assente: si prova nel modo normale */ }
   }
+  try {
+    const r = await fetch(req);
+    if (r && r.type === 'opaque') corsBad[url.host] = true;
+    return r;
+  } catch (e) { return Response.error(); }
 }
 
 /* ---------- dati di sola lettura di Navidrome e testi LRCLIB: rete per prima, copia salvata come ripiego ---------- */
@@ -128,26 +131,33 @@ async function data(req, url, ev, ok, kind) {
     return new Response(await hit.arrayBuffer(), { status: 200, headers: {
       'Content-Type': hit.headers.get('Content-Type') || 'application/json', 'X-Winkify-Cache': '1', 'Access-Control-Allow-Origin': '*' } });
   };
-  if (serverDown) { const s = await stale(); if (s) return s; }
-  try {
-    const r = await withTimeout(fetch(req), serverDown ? 4000 : 10000);
+  /* la richiesta di rete non viene mai interrotta: se e' lenta si aspetta (come prima della cache) */
+  const net = (async () => {
+    const r = await fetch(req);
     if (r.status === 200) {
       const cl = r.clone();
-      ev.waitUntil((async () => {
-        try { const t = await cl.text();
-          if (ok(t)) { await c.put(key, new Response(t, { headers: { 'Content-Type': cl.headers.get('Content-Type') || 'application/json' } })); await trim(c, 800, 150); }
-        } catch (_) {}
+      keep(ev, (async () => {
+        const t = await cl.text();
+        if (ok(t)) { await c.put(key, new Response(t, { headers: { 'Content-Type': cl.headers.get('Content-Type') || 'application/json' } })); await trim(c, 800, 150); }
       })());
     }
     return r;
-  } catch (err) { const s = await stale(); if (s) return s; throw err; }
+  })();
+  const have = await c.match(key);
+  if (!have) return net;                                   /* niente copia: si aspetta la rete, quanto serve */
+  try {
+    const r = await Promise.race([net, new Promise(res => setTimeout(() => res(null), serverDown ? 2500 : 15000))]);
+    if (r) return r;
+    keep(ev, net);                                          /* la rete continua e aggiorna la copia */
+    return (await stale()) || net;
+  } catch (err) { const s2 = await stale(); if (s2) return s2; throw err; }
 }
 
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url), p = url.pathname;
-  if (req.mode === 'navigate' && url.origin === location.origin) { e.respondWith(shell(req)); return; }
+  if (req.mode === 'navigate' && url.origin === location.origin) { e.respondWith(shell(req, e)); return; }
   if (/\/rest\/(stream|download)$/.test(p)) { e.respondWith(audio(req, url)); return; }
   if (/\/rest\/getCoverArt$/.test(p)) { e.respondWith(cover(req, url)); return; }
   if (DATA_EP.test(p)) { e.respondWith(data(req, url, e, jsonOk, 'data')); return; }

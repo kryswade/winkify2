@@ -1028,22 +1028,28 @@ body.pod #fpcard,body.pod #bly,body.pod #fpl,body.pod #fpline{display:none!impor
  .lib-list{padding:0 12px}
  .ptiles{padding:12px 16px 4px}
 }
+/* campi di ricerca: aspetto invariato anche con type=search; chiave API mascherata senza essere un campo password */
+#si,#msi{-webkit-appearance:none;appearance:none}
+#si::-webkit-search-decoration,#si::-webkit-search-cancel-button,#msi::-webkit-search-decoration,#msi::-webkit-search-cancel-button{-webkit-appearance:none;display:none}
+#ytk{-webkit-text-security:disc;text-security:disc}
 </style>
 </head>
 <body>
 
-<!-- LOGIN -->
-<div id="login">
+<!-- LOGIN: schermata separata. Il modulo sta in un <template> (inerte, invisibile a Chrome) e viene creato nella pagina solo se serve accedere;
+     appena si e' connessi viene tolto, cosi' nella pagina non resta nessun campo password a cui Chrome possa abbinare la ricerca. -->
+<div id="loginhost"></div>
+<template id="logintpl"><div id="login">
  <form id="lform" autocomplete="on">
   <div class="logo" id="llogo"></div>
   <h1>Collegati a Navidrome</h1>
-  <label>URL del server<input id="lsrv" type="url" placeholder="https://musica.tuodominio.it" required autocapitalize="off" autocorrect="off"></label>
-  <label>Utente<input id="lusr" type="text" autocomplete="username" required autocapitalize="off"></label>
-  <label>Password<input id="lpwd" type="password" autocomplete="current-password" required></label>
+  <label>URL del server<input id="lsrv" name="server" type="url" placeholder="https://musica.tuodominio.it" required autocapitalize="off" autocorrect="off"></label>
+  <label>Utente<input id="lusr" name="username" type="text" autocomplete="username" required autocapitalize="off"></label>
+  <label>Password<input id="lpwd" name="password" type="password" autocomplete="current-password" required></label>
   <div id="lerr"></div>
   <button class="btn" type="submit" id="lbtn">Accedi</button>
-</form>
-</div>
+ </form>
+</div></template>
 
 <!-- APP -->
 <div id="app">
@@ -1051,7 +1057,7 @@ body.pod #fpcard,body.pod #bly,body.pod #fpl,body.pod #fpline{display:none!impor
   <div class="brand" id="brand"></div>
   <div class="mid">
    <a class="circ" href="#/home" title="Home" id="topHome"></a>
-   <label id="sbox"><span id="sbIcon"></span><input id="si" type="text" placeholder="Cosa vuoi ascoltare?" autocomplete="off"></label>
+   <label id="sbox"><span id="sbIcon"></span><input id="si" name="q" type="search" placeholder="Cosa vuoi ascoltare?" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="search" data-lpignore="true" data-1p-ignore="true" data-form-type="other"></label>
   </div>
   <div class="right"><button class="ib" id="tfs" data-act="fullscreen" data-fs aria-label="Schermo intero" title="Schermo intero"></button><button class="avatar" id="avatar" data-act="usermenu" title="Account e impostazioni"></button></div>
   <div id="mhead"></div>
@@ -1195,7 +1201,7 @@ body.pod #fpcard,body.pod #bly,body.pod #fpl,body.pod #fpline{display:none!impor
   </section>
   <section class="spage" id="sp-video" hidden>
    <div class="srow" style="padding-bottom:6px"><div class="stt"><b>Chiave YouTube Data API</b><i id="ytst"></i></div></div>
-   <input type="password" id="ytk" class="sinp" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Chiave YouTube Data API">
+   <input type="text" id="ytk" name="yt-api-key" class="sinp" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other" aria-label="Chiave YouTube Data API">
    <div class="ytb"><button class="pbtn sec" data-act="ytsave">Salva e verifica</button><button class="pbtn sec" id="ytdel" data-act="ytdel" hidden>Rimuovi</button></div>
    <details class="ytd"><summary>Come ottenere la chiave (gratis)</summary><ol id="ythow"></ol></details>
   </section>
@@ -1485,7 +1491,7 @@ function renderLibrary(){
     const img = it.k==='liked' ? `<div class="cov likedcov">${ic('heart',22)}</div>` : it.k==='cache' ? `<div class="cov likedcov" style="background:linear-gradient(135deg,#1ed760,#0b6b30)">${ic('dl',22)}</div>` : cov(it.img,96,it.k==='artist'?'round':'');
     return `<a class="li ${it.k}" href="${it.href}" data-href="${it.href}"${it.pid?` data-pl="${esc(it.pid)}"`:''}>${img}<div class="t"><div class="nm">${esc(it.name)}</div><div class="sb">${it.sub}</div></div></a>`;
   }).join('');
-  const html = `<div class="lib-h">${ic('lib')}<span>La tua libreria</span></div>${LIB.qopen?`<div class="libq"><input class="libqi" type="search" placeholder="Cerca nella libreria" value="${esc(LIB.q||'')}" autocomplete="off"></div>`:''}
+  const html = `<div class="lib-h">${ic('lib')}<span>La tua libreria</span></div>${LIB.qopen?`<div class="libq"><input class="libqi" name="q" data-lpignore="true" data-1p-ignore="true" type="search" placeholder="Cerca nella libreria" value="${esc(LIB.q||'')}" autocomplete="off"></div>`:''}
    <div class="chips">${chip('playlists','Playlist')}${chip('artists','Artisti')}${chip('albums','Album')}${chip('podcasts','Podcast')}</div>
    <div class="lib-s"><button data-act="libsort" style="display:flex;gap:8px;align-items:center">${ic('sort',16)}<span>${LIB.sort==='recent'?'Recenti':'Ordine alfabetico'}</span></button><button class="lvw" data-act="libview" aria-label="Cambia vista">${LIB.view==='grid'?ic('sort',20):'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.4"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.4"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.4"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.4"/></svg>'}</button></div>
    <div class="lib-list ${LIB.view==='grid'?'gv':''}">${rows}</div>`;
@@ -3044,7 +3050,7 @@ let SF='all', LASTSRCH=null, GENRES=null;
 async function vSearch(q, my){
   const view=$('#view');
   if(lastName!=='search' || !$('#sview')){
-    view.innerHTML=`<div id="sview"><div class="msearch">${ic('search',22)}<input id="msi" type="text" placeholder="Cosa vuoi ascoltare?" autocomplete="off"></div><div id="sres"></div></div>`;
+    view.innerHTML=`<div id="sview"><div class="msearch">${ic('search',22)}<input id="msi" name="q" type="search" placeholder="Cosa vuoi ascoltare?" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="search" data-lpignore="true" data-1p-ignore="true" data-form-type="other"></div><div id="sres"></div></div>`;
     setHero(null); $('#main').scrollTop=0;
   }
   [$('#si'),$('#msi')].forEach(el=>{ if(el && document.activeElement!==el) el.value=q; });
@@ -3275,7 +3281,6 @@ document.addEventListener('input',e=>{ if(e.target.id==='msi') onSearchInput(e);
 /* ---------- login / avvio ---------- */
 function logout(){ try{localStorage.removeItem('winkify_session');localStorage.removeItem('melodia_session');localStorage.removeItem('winkify_pq');localStorage.removeItem('winkify_pt');}catch(e){} audio.pause(); location.hash=''; location.reload(); }
 function initStaticIcons(){
-  $('#llogo').innerHTML=logoSvg(56);
   $('#brand').innerHTML=logoSvg(32)+'<span>Winkify</span>';
   $('#topHome').innerHTML=ic('home',26);
   $('#sbIcon').innerHTML=ic('search',24);
@@ -3290,7 +3295,7 @@ function initStaticIcons(){
   navMark('home'); updateVol(); updateUI();
 }
 function startApp(){
-  $('#login').style.display='none'; $('#app').classList.add('on');
+  unmountLogin(); $('#app').classList.add('on');
   $('#avatar').textContent=(S.user||'?').charAt(0); avatarUpdate();
   initStaticIcons();
   navStart();
@@ -3298,26 +3303,37 @@ function startApp(){
   route();
   try{ restorePlayer(); }catch(e){}
 }
-$('#lform').addEventListener('submit',async e=>{
+/* schermata di accesso: creata solo quando serve, tolta appena si e' connessi */
+function mountLogin(){
+  if($('#login')) return;
+  $('#loginhost').appendChild($('#logintpl').content.cloneNode(true));
+  $('#llogo').innerHTML=logoSvg(56);
+  try{ $('#lsrv').value=localStorage.getItem('winkify_last_srv')||''; }catch(e){}
+  $('#lsrv').addEventListener('change',()=>{ try{localStorage.setItem('winkify_last_srv',$('#lsrv').value);}catch(e){} });
+  $('#lform').addEventListener('submit',onLoginSubmit);
+}
+function unmountLogin(){ const l=$('#login'); if(l) l.remove(); }
+async function onLoginSubmit(e){
   e.preventDefault();
   let srv=normServer($('#lsrv').value);
   const user=$('#lusr').value.trim(), pwd=$('#lpwd').value;
   const salt=Array.from(crypto.getRandomValues(new Uint8Array(6))).map(b=>b.toString(16).padStart(2,'0')).join('');
   S={server:srv,user,salt,token:md5(pwd+salt)};
-  $('#lbtn').disabled=true; $('#lbtn').textContent='Connessione…'; $('#lerr').textContent='';
+  const btn=$('#lbtn'), errEl=$('#lerr');
+  btn.disabled=true; btn.textContent='Connessione…'; errEl.textContent='';
   try{
     await api('ping');
     localStorage.setItem('winkify_session',JSON.stringify(S));
     startApp();
   }catch(err){
     S=null;
-    $('#lerr').textContent = err instanceof TypeError
+    errEl.textContent = err instanceof TypeError
       ? (location.protocol==='https:' && /^http:\/\//i.test(srv)
           ? 'Richiesta bloccata dal browser. '+MIXED_HINT+' Controlla anche che l\'indirizzo e la porta (di solito 4533) siano giusti.'
           : 'Server non raggiungibile. Controlla l\'indirizzo, la porta e che Navidrome sia acceso (e, se la pagina è in HTTPS, che il server sia in HTTPS).')
       : 'Accesso non riuscito: '+err.message;
-  }finally{ $('#lbtn').disabled=false; $('#lbtn').textContent='Accedi'; }
-});
+  }finally{ btn.disabled=false; btn.textContent='Accedi'; }
+}
 /* indirizzo del server: senza http/https si sceglie da soli (rete locale -> http, internet -> https) */
 function normServer(v){
   v=String(v||'').trim().replace(/\/+$/,''); if(/^https?:\/\//i.test(v)) return v;
@@ -4933,8 +4949,7 @@ async function radioArtist(id){
   }catch(e){ toast('Radio non disponibile: '+e.message); }
 }
 if(S && S.server && S.token){ startApp(); }
-else { S=null; try{ $('#lsrv').value=localStorage.getItem('winkify_last_srv')||''; }catch(e){} initStaticIcons(); }
-$('#lsrv').addEventListener('change',()=>{ try{localStorage.setItem('winkify_last_srv',$('#lsrv').value);}catch(e){} });
+else { S=null; mountLogin(); initStaticIcons(); }
 </script>
 </body>
 </html>

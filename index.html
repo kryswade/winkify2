@@ -11,7 +11,7 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{--sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px)}
-html,body{height:100%;background:#000;color:#fff;font-family:"Circular Std","Circular",CircularSp,"Helvetica Neue",Helvetica,Arial,"Segoe UI",Roboto,sans-serif;font-size:14px;overflow:hidden}
+html,body{overscroll-behavior:none;height:100%;background:#000;color:#fff;font-family:"Circular Std","Circular",CircularSp,"Helvetica Neue",Helvetica,Arial,"Segoe UI",Roboto,sans-serif;font-size:14px;overflow:hidden}
 a{color:inherit;text-decoration:none}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 svg{display:block;flex:none}
@@ -1129,6 +1129,11 @@ body.pod #fpcard,body.pod #bly,body.pod #fpl,body.pod #fpline{display:none!impor
  #crs{background:rgba(0,0,0,.6)}
  .crc2{left:16px;right:auto;bottom:110px;width:400px;margin:0}
 }
+/* niente «trascina in basso per aggiornare» (Chrome su Android): la pagina e i pannelli non passano il gesto al browser */
+html,body,#app,#main,#fp,#lyr,#lybody{overscroll-behavior:none}
+/* un pannello che scorre e' in cima: il browser puo' solo spostarlo verso l'alto (dito che sale). Cosi' «trascina per aggiornare» non parte mai.
+   L'attributo data-top viene messo e tolto da uno script mentre si scorre. */
+[data-top]{touch-action:pan-x pan-down}
 </style>
 </head>
 <body>
@@ -1272,6 +1277,7 @@ body.pod #fpcard,body.pod #bly,body.pod #fpl,body.pod #fpline{display:none!impor
    <button class="smrow" data-act="setgo" data-p="offline"><span class="smi" data-ic="off" data-is="28"></span><span class="smt"><b>Cache e offline</b><i id="sm-offline"></i></span></button>
    <button class="smrow" data-act="setgo" data-p="server"><span class="smi" data-ic="srv" data-is="28"></span><span class="smt"><b>Server Navidrome</b><i id="sm-server"></i></span></button>
    <button class="smrow" data-act="setgo" data-p="video"><span class="smi" data-ic="vid" data-is="28"></span><span class="smt"><b>Video</b><i id="sm-video"></i></span></button>
+    <p class="snote" style="text-align:center;margin-top:18px">Winkify • versione 90</p>
   </section>
   <section class="spage" id="sp-account" hidden>
    <div class="acbig"><span class="dr-av big" id="acav"></span><div><b id="acn"></b><i id="acs"></i></div></div>
@@ -5607,6 +5613,36 @@ async function pleSave(){
   document.addEventListener('pointerup',end); document.addEventListener('pointercancel',end);
 })();
 
+/* ---- blocca il «trascina per aggiornare» del browser (tre livelli) ----
+   1) CSS: overscroll-behavior: none su pagina, contenitore principale, player e testi.
+   2) touch-action: il player a schermo intero e la pagina dei testi, quando sono in cima, accettano dal browser solo il gesto «dito che sale»
+      (attributo data-top): il browser decide il gesto al primo contatto, quindi un trascinamento verso il basso non puo' diventare «aggiorna».
+   3) script: se il gesto parte comunque, un trascinamento verso il basso senza nulla da riportare in cima viene annullato. */
+(function(){
+  const SEL = '#fp, #lybody';
+  const mark = el => { if(!el || el.nodeType!==1) return; const top = el.scrollTop<=1; if(top){ if(!el.hasAttribute('data-top')) el.setAttribute('data-top',''); } else if(el.hasAttribute('data-top')) el.removeAttribute('data-top'); };
+  const markAll = () => { document.querySelectorAll(SEL).forEach(mark); };
+  document.addEventListener('scroll',e=>{ const t=e.target; if(t && t.nodeType===1 && t.matches && t.matches(SEL)) mark(t); },true);
+  setInterval(markAll,300);
+  markAll();
+  let y0=0, x0=0, one=false;
+  const canScrollUp = el => {
+    for(let n=el; n && n!==document.documentElement; n=n.parentElement){
+      if(n.scrollTop>1){ const o=getComputedStyle(n).overflowY; if(o==='auto' || o==='scroll' || o==='overlay') return true; }
+    }
+    return false;
+  };
+  window.addEventListener('touchstart',e=>{ one=e.touches.length===1; if(one){ y0=e.touches[0].clientY; x0=e.touches[0].clientX; } },{passive:true,capture:true});
+  window.addEventListener('touchmove',e=>{
+    if(!one || e.touches.length!==1 || !e.cancelable) return;
+    const t=e.touches[0], dy=t.clientY-y0, dx=t.clientX-x0;
+    if(dy<=0 || Math.abs(dy)<=Math.abs(dx)) return;            /* solo verso il basso e piu' verticale che orizzontale */
+    const tg=e.target;
+    if(tg && tg.tagName==='INPUT' && tg.type==='range') return;  /* barre di avanzamento e volume */
+    if(canScrollUp(tg)) return;                                  /* c'e' qualcosa da riportare in alto: scorre normalmente */
+    e.preventDefault();
+  },{passive:false,capture:true});
+})();
 if(S && S.server && S.token){ startApp(); }
 else { S=null; mountLogin(); initStaticIcons(); }
 </script>

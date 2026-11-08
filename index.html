@@ -1201,29 +1201,30 @@ html,body,#app,#main,#fp,#lyr,#lybody{overscroll-behavior:none}
  /* ---------- pannello «In riproduzione» a destra ---------- */
  #app.npv-open:not(.q-open) #npv{display:flex;grid-column:3;grid-row:2}
  #npv{flex-direction:column;background:#121212;border-radius:8px;min-height:0;overflow-y:auto;padding-bottom:16px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.28) transparent}
- #npv .npt{padding:18px 16px 14px;font-weight:700;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:none}
+ #npv{container-type:inline-size}
+ #npv .npt{padding:18px 16px 12px;font-weight:700;font-size:15.6px;font-size:clamp(12.5px,3.7cqw,16px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:none}
  #npv .npt a:hover{text-decoration:underline}
  #npcv{padding:0 16px;flex:none}
  #npcv .cov{width:100%;height:auto;aspect-ratio:1;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
- #npv .npi{display:flex;align-items:center;gap:12px;padding:22px 16px 0;flex:none}
+ #npv .npi{display:flex;align-items:center;gap:12px;padding:18px 16px 0;flex:none}
  #npv .npi .t{flex:1;min-width:0}
- #nptitle{font-size:24px;font-weight:800;line-height:1.2;letter-spacing:-.3px;overflow-wrap:anywhere}
+ #nptitle{font-size:21px;font-size:clamp(17px,5cqw,23px);font-weight:700;line-height:1.2;letter-spacing:0;overflow-wrap:anywhere}
  #nptitle a:hover,#npartist a:hover{text-decoration:underline}
- #npartist{font-size:16px;color:#b3b3b3;margin-top:4px}
- #npheart{width:36px;height:36px;color:#b3b3b3;flex:none}
+ #npartist{font-size:14.3px;font-size:clamp(12.5px,3.4cqw,15px);color:#b3b3b3;margin-top:3px}
+ #npheart{width:32px;height:32px;color:#b3b3b3;flex:none}
  #npheart.on{color:#1ed760}
- #npcard{margin:22px 12px 0;border-radius:8px;padding:16px 0 0;background:linear-gradient(rgba(0,0,0,.18),rgba(0,0,0,.18)),rgb(var(--lc,83,83,83));overflow:hidden;cursor:pointer;flex:none;transition:background .6s}
+ #npcard{margin:18px 16px 0;border-radius:8px;padding:16px 0 0;background:linear-gradient(rgba(0,0,0,.18),rgba(0,0,0,.18)),rgb(var(--lc,83,83,83));overflow:hidden;cursor:pointer;flex:none;transition:background .6s}
  #npcard[hidden]{display:none}
- .npch{display:flex;justify-content:space-between;align-items:center;padding:0 12px 8px 20px;font-weight:700;font-size:16px}
+ .npch{display:flex;justify-content:space-between;align-items:center;padding:0 12px 6px 16px;font-weight:700;font-size:15.9px;font-size:clamp(12.5px,3.75cqw,17px)}
  .npch .cbtn{width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,.3);color:#fff;display:inline-flex;align-items:center;justify-content:center}
  .npch .cbtn:hover{background:rgba(0,0,0,.45);transform:none}
- #npcbody{position:relative;height:250px;overflow:hidden;padding:0 20px;-webkit-mask-image:linear-gradient(180deg,#000 70%,transparent);mask-image:linear-gradient(180deg,#000 70%,transparent)}
- #npcbody .ll{max-width:none;margin:0;padding:6px 0;font-size:24px;line-height:1.25;letter-spacing:-.3px;transform:none;opacity:.5;cursor:pointer}
+ #npcbody{position:relative;height:250px;overflow:hidden;padding:0 16px;-webkit-mask-image:linear-gradient(180deg,#000 70%,transparent);mask-image:linear-gradient(180deg,#000 70%,transparent)}
+ #npcbody .ll{max-width:none;margin:0;padding:4px 0;font-size:21.7px;font-size:clamp(16.5px,5.15cqw,24px);font-weight:700;line-height:1.3;letter-spacing:0;transform:none;opacity:.5;cursor:pointer}
  #npcbody .ll.past{opacity:.5}
  #npcbody .ll.on{opacity:1;transform:none}
- #npcbody .ll.plain{opacity:1;font-size:18px;padding:3px 0}
- #npcbody .lmsg{text-align:left;font-size:16px;margin:0;opacity:.9}
- #npcsrc{padding:2px 20px 14px;font-size:11px;color:rgba(255,255,255,.72);min-height:16px}
+ #npcbody .ll.plain{opacity:1;font-size:16px;font-size:clamp(13px,3.8cqw,17px);padding:3px 0}
+ #npcbody .lmsg{text-align:left;font-size:13px;margin:0;opacity:.9}
+ #npcsrc{padding:2px 16px 14px;font-size:10px;color:rgba(255,255,255,.72);min-height:16px}
  /* ---------- barra del player ---------- */
  #player{padding:0 8px}
  #pcov .cov{width:56px;height:56px;border-radius:4px}
@@ -1400,7 +1401,7 @@ html,body,#app,#main,#fp,#lyr,#lybody{overscroll-behavior:none}
    <button class="smrow" data-act="setgo" data-p="offline"><span class="smi" data-ic="off" data-is="28"></span><span class="smt"><b>Cache e offline</b><i id="sm-offline"></i></span></button>
    <button class="smrow" data-act="setgo" data-p="server"><span class="smi" data-ic="srv" data-is="28"></span><span class="smt"><b>Server Navidrome</b><i id="sm-server"></i></span></button>
    <button class="smrow" data-act="setgo" data-p="video"><span class="smi" data-ic="vid" data-is="28"></span><span class="smt"><b>Video</b><i id="sm-video"></i></span></button>
-    <p class="snote" style="text-align:center;margin-top:18px">Winkify • versione 91</p>
+    <p class="snote" style="text-align:center;margin-top:18px">Winkify • versione 92</p>
   </section>
   <section class="spage" id="sp-account" hidden>
    <div class="acbig"><span class="dr-av big" id="acav"></span><div><b id="acn"></b><i id="acs"></i></div></div>
@@ -2384,7 +2385,7 @@ function refreshHearts(){
   ['#pheart','#fpheart','#npheart'].forEach(sel=>{ const b=$(sel); const on=!!s&&starred.has(s.id); b.classList.toggle('on',on);
     if(sel==='#fpheart') b.innerHTML = on ? spCheck(33) : sp('pcirc',33);
     else if(isMob()) b.innerHTML = on ? spCheck(23.3) : sp('pcirc',23.3);
-    else b.innerHTML = on ? spCheck(sel==='#npheart'?28:18) : sp('pcirc',sel==='#npheart'?28:18);
+    else b.innerHTML = on ? spCheck(sel==='#npheart'?24:18) : sp('pcirc',sel==='#npheart'?24:18);
     b.style.visibility=(s&&!s.pod)?'visible':'hidden'; });
 }
 async function toggleStar(id, album=false){

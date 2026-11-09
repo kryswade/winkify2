@@ -1246,6 +1246,14 @@ html,body,#app,#main,#fp,#lyr,#lybody{overscroll-behavior:none}
  #npv,.lib-s .libsb,.lha,.sbd,.sbb{display:none}
  #bnp,#bconn{display:none}
 }
+/* swipe sulla copertina del player: orizzontale = cambio brano, verticale = scorre il player */
+@media (max-width:800px){
+ #fp{overflow-x:hidden}
+ #fp .fmid{position:relative}
+ #fp .fcov{align-self:stretch;touch-action:pan-y;-webkit-user-select:none;user-select:none}
+ #fp .fcov img{-webkit-user-drag:none;user-select:none;pointer-events:none}
+ #fp .fcov.fsw{position:absolute;align-self:auto;margin:0;pointer-events:none;will-change:transform;z-index:2}
+}
 </style>
 </head>
 <body>
@@ -1401,7 +1409,7 @@ html,body,#app,#main,#fp,#lyr,#lybody{overscroll-behavior:none}
    <button class="smrow" data-act="setgo" data-p="offline"><span class="smi" data-ic="off" data-is="28"></span><span class="smt"><b>Cache e offline</b><i id="sm-offline"></i></span></button>
    <button class="smrow" data-act="setgo" data-p="server"><span class="smi" data-ic="srv" data-is="28"></span><span class="smt"><b>Server Navidrome</b><i id="sm-server"></i></span></button>
    <button class="smrow" data-act="setgo" data-p="video"><span class="smi" data-ic="vid" data-is="28"></span><span class="smt"><b>Video</b><i id="sm-video"></i></span></button>
-    <p class="snote" style="text-align:center;margin-top:18px">Winkify • versione 92</p>
+    <p class="snote" style="text-align:center;margin-top:18px">Winkify • versione 93</p>
   </section>
   <section class="spage" id="sp-account" hidden>
    <div class="acbig"><span class="dr-av big" id="acav"></span><div><b id="acn"></b><i id="acs"></i></div></div>
@@ -2352,7 +2360,7 @@ function updateUI(){
   $('#fptitle').textContent = s ? s.title : '';
   $('#fpartist').textContent = s ? s.artist : '';
   $('#fpctx').textContent = ctxName(s);
-  $('#fpcov').innerHTML = s ? cov(s.coverArt,600) : '';
+  fpCovSet(s);
   renderArtistCard(s);
   const pp = ic(playing?'pause':'play', 16);
   $('#bpp').innerHTML = isMobile() ? (playing?spPause(17):sp('mplay')) : ic(playing?'pause':'play', 18);
@@ -2365,7 +2373,7 @@ function updateUI(){
   document.title = s ? `${s.title} • ${s.artist}` : 'Winkify';
   document.body.classList.toggle('paused', !playing);
   updateProgress(); markPlaying(); refreshHearts(); lyHeader(); npvUpdate(s);
-  vidBtn(); if(fpOpen()) vidLookup(s);
+  vidBtn(); if(fpOpen()){ vidLookup(s); swPrefetch(); }
   if(s) dom(s.coverArt).then(c=>{ if(cur()===s){ $('#lyr').style.setProperty('--lc',c.join(',')); $('#npv').style.setProperty('--lc',c.join(',')); $('#fp').style.setProperty('--fc',c.join(',')); $('#player').style.setProperty('--pc',c.map(x=>Math.round(x*.8)).join(',')); } });
   if('mediaSession' in navigator){ const adv=!playing && !!s && !CAST.on && localAudio.ended && xfNextIdx()>=0; navigator.mediaSession.playbackState=(playing||adv)?'playing':'paused'; }
 }
@@ -2565,7 +2573,7 @@ function openLyrics(){
 }
 function closeLyrics(){ if(!LY.open) return; LY.open=false; $('#app').classList.remove('lyr-open'); lyHeader(); updateLyricsPos(true,true); }
 function toggleLyrics(){ LY.open ? closeLyrics() : openLyrics(); }
-function openFp(){ const f=$('#fp'); f.classList.add('open'); f.scrollTop=0; ensureLyrics(); updateLyricsPos(true,true); startLyTick(); vidBtn(); vidLookup(cur()); }
+function openFp(){ const f=$('#fp'); f.classList.add('open'); f.scrollTop=0; ensureLyrics(); updateLyricsPos(true,true); startLyTick(); vidBtn(); vidLookup(cur()); swPrefetch(); }
 function closeFp(){ if(VID_ON()) vidStop(true); $('#fp').classList.remove('open'); }
 /* Su touch un verso si tocca per saltarci solo con un tocco netto: non dopo uno scorrimento, non se il dito si e' mosso, non se e' stato premuto a lungo. */
 const LG={x:0,y:0,t:0,mv:0,touch:false,moved:false,bad:false};
@@ -5815,6 +5823,121 @@ function fitHd(){
 }
 window.addEventListener('resize',()=>{ try{ fitHd(); }catch(e){} });
 try{ let fw=0; new ResizeObserver(es=>{ const w=Math.round(es[0].contentRect.width); if(w!==fw){ fw=w; fitHd(); } }).observe($('#main')); }catch(e){}
+/* ================= CAMBIO BRANO CON LO SWIPE SULLA COPERTINA (player a schermo intero) =================
+   Come in Spotify: la copertina segue il dito e di lato compaiono quelle del brano precedente e di quello successivo.
+   Scorrendo a sinistra si va al brano successivo, a destra al precedente. Se si lascia prima di meta' (e senza uno scatto veloce) la
+   copertina torna al suo posto. Dove non c'e' un brano da raggiungere (primo brano, o ultimo senza «Ripeti») la copertina oppone resistenza
+   e torna indietro. Lo scorrimento verticale del player non cambia. */
+const SW = {t:false, pid:null, x0:0, y0:0, dx:0, lock:null, pts:[], w:0, step:0, cv:null, g:[], prevS:null, nextS:null, busy:false, commit:false, pf:'', tok:0};
+const SW_GAP = 16;
+/* brano che si raggiunge scorrendo: dir=+1 successivo, dir=-1 precedente (null se non c'e') */
+function swNb(dir){
+  const n=P.queue.length; if(!n || P.i<0) return null;
+  if(dir>0){ if(P.i<n-1) return P.queue[P.i+1]; return (P.repeat===1 && n>1) ? P.queue[0] : null; }
+  if(P.i>0) return P.queue[P.i-1];
+  return (P.repeat===1 && n>1) ? P.queue[n-1] : null;
+}
+/* le copertine dei due brani vicini si scaricano in anticipo: lo swipe le trova gia' pronte */
+function swPrefetch(){
+  if(!fpOpen()) return;
+  const a=swNb(1), b=swNb(-1), k=(a?a.id:'')+'|'+(b?b.id:'');
+  if(SW.pf===k) return; SW.pf=k;
+  [a,b].forEach(s=>{ if(s && s.coverArt){ try{ const im=new Image(); im.decoding='async'; im.src=coverUrl(s.coverArt,600); }catch(e){} } });
+}
+/* disegna la copertina del player (e la rimette a posto solo se il brano e' cambiato: niente sfarfallio ad ogni play/pausa) */
+function fpCovSet(s){
+  const el=$('#fpcov'); if(!el) return;
+  const k = s ? s.id+'|'+(s.coverArt||'') : '';
+  if(el.dataset.k===k) return;
+  if(SW.lock==='h' && !SW.commit) swClean();                 /* il brano e' cambiato mentre si trascinava (passaggio automatico): si annulla */
+  el.dataset.k=k;
+  el.innerHTML = s ? cov(s.coverArt,600) : '';
+}
+function swClean(){
+  SW.g.forEach(g=>{ if(g) g.remove(); }); SW.g=[];
+  if(SW.cv){ SW.cv.style.transform=''; SW.cv.style.transition=''; SW.cv.style.willChange=''; }
+  SW.cv=null; SW.lock=null; SW.t=false; SW.busy=false; SW.commit=false; SW.tok++;
+}
+/* all'inizio del gesto: crea, accanto alla copertina, quelle del brano precedente e successivo */
+function swBegin(){
+  const mid=$('#fpmid'), cv=$('#fpcov .cov'); if(!mid || !cv || !cur()) return false;
+  const mr=mid.getBoundingClientRect(), cr=cv.getBoundingClientRect();
+  if(cr.width<20) return false;
+  SW.cv=cv; SW.w=cr.width; SW.step=cr.width+SW_GAP;
+  SW.prevS=swNb(-1); SW.nextS=swNb(1);
+  const mk=s=>{
+    if(!s) return null;
+    const d=document.createElement('div'); d.className='fcov fsw';
+    d.style.cssText='left:'+(cr.left-mr.left)+'px;top:'+(cr.top-mr.top)+'px;width:'+cr.width+'px;height:'+cr.height+'px';
+    d.innerHTML='<div class="cov">'+ic('note')+(s.coverArt?'<img src="'+coverUrl(s.coverArt,600)+'" decoding="async" alt="" onerror="this.remove()">':'')+'</div>';
+    mid.appendChild(d); return d;
+  };
+  SW.g=[mk(SW.prevS), mk(SW.nextS)];
+  cv.style.willChange='transform';
+  return true;
+}
+function swApply(dx, anim){
+  const tr = anim ? 'transform .24s cubic-bezier(.2,.8,.2,1)' : 'none';
+  const set=(el,x)=>{ if(!el) return; el.style.transition=tr; el.style.transform='translate3d('+x+'px,0,0)'; };
+  set(SW.cv,dx); set(SW.g[0],dx-SW.step); set(SW.g[1],dx+SW.step);
+}
+/* rilascio oltre la soglia: il brano cambia e le copertine «finte» restano finche' non e' pronta quella vera */
+function swCommit(dir){
+  const ghosts=SW.g.slice(); SW.g=[]; SW.cv=null;
+  const my=++SW.tok; let ran=false;
+  SW.commit=true;
+  try{
+    if(dir>0) next(false);
+    else{ P.i = P.i>0 ? P.i-1 : P.queue.length-1; load(); }
+  }catch(e){}
+  SW.commit=false;
+  /* chiusura: toglie le copertine «finte» (una volta sola) e libera lo stato solo se non e' gia' iniziato un altro gesto */
+  const done=()=>{ if(ran) return; ran=true; ghosts.forEach(g=>{ if(g) g.remove(); }); if(SW.tok===my){ SW.busy=false; SW.t=false; SW.lock=null; } };
+  const img=$('#fpcov img');
+  if(img && !img.complete){ img.addEventListener('load',()=>requestAnimationFrame(done),{once:true}); img.addEventListener('error',done,{once:true}); setTimeout(done,350); }
+  else requestAnimationFrame(()=>requestAnimationFrame(done));
+}
+(function(){
+  const el=$('#fpcov'); if(!el) return;
+  el.addEventListener('pointerdown',e=>{
+    if(SW.busy || SW.t || !fpOpen() || VID_ON() || !cur()) return;
+    if(e.pointerType==='mouse' && e.button!==0) return;
+    SW.t=true; SW.tok++; SW.pid=e.pointerId; SW.x0=e.clientX; SW.y0=e.clientY; SW.dx=0; SW.lock=null; SW.pts=[[e.timeStamp,e.clientX]];
+  });
+  el.addEventListener('pointermove',e=>{
+    if(!SW.t || e.pointerId!==SW.pid) return;
+    const dx=e.clientX-SW.x0, dy=e.clientY-SW.y0;
+    if(!SW.lock){
+      if(Math.abs(dx)<8 && Math.abs(dy)<8) return;
+      if(Math.abs(dx)>Math.abs(dy)){
+        if(!swBegin()){ SW.t=false; return; }
+        SW.lock='h'; try{ el.setPointerCapture(e.pointerId); }catch(x){}
+      }else{ SW.t=false; return; }                           /* gesto verticale: scorre il player */
+    }
+    if(e.cancelable) e.preventDefault();
+    let x=dx;
+    if((dx>0 && !SW.prevS) || (dx<0 && !SW.nextS)) x=dx*0.3;    /* niente brano da quel lato: resistenza */
+    SW.dx=x;
+    const t=e.timeStamp; SW.pts.push([t,e.clientX]); while(SW.pts.length>2 && t-SW.pts[0][0]>120) SW.pts.shift();
+    swApply(x,false);
+  });
+  const end=(e,cancel)=>{
+    if(!SW.t || (e && e.pointerId!==SW.pid)) return;
+    SW.t=false;
+    try{ el.releasePointerCapture(e.pointerId); }catch(x){}
+    if(SW.lock!=='h'){ SW.lock=null; return; }
+    let v=0; const p=SW.pts;
+    if(p.length>=2){ const a=p[0], b=p[p.length-1]; if(b[0]>a[0]) v=(b[1]-a[1])/(b[0]-a[0]); }       /* px per ms */
+    const dir = SW.dx<0 ? 1 : -1, target = dir>0 ? SW.nextS : SW.prevS;
+    const go = !cancel && !!target && (Math.abs(SW.dx)>SW.w*0.28 || (Math.abs(v)>0.4 && Math.abs(SW.dx)>24 && (v<0)===(dir>0)));
+    SW.busy=true; const my=SW.tok;
+    if(go){ swApply(dir>0 ? -SW.step : SW.step, true); setTimeout(()=>{ if(SW.tok===my && SW.busy) swCommit(dir); },230); }
+    else{ swApply(0,true); setTimeout(()=>{ if(SW.tok===my) swClean(); },260); }
+  };
+  el.addEventListener('pointerup',e=>end(e,false));
+  el.addEventListener('pointercancel',e=>end(e,true));
+  el.addEventListener('lostpointercapture',e=>{ if(e.target===el && SW.t && SW.lock==='h') end(e,true); });   /* solo quando perde la cattura la copertina stessa (non un elemento figlio) */
+})();
 if(S && S.server && S.token){ startApp(); }
 else { S=null; mountLogin(); initStaticIcons(); }
 </script>
